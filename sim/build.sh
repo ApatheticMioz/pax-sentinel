@@ -184,16 +184,59 @@ run_candidates_asan() {
   ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/candidates_ab_test_asan"
 }
 
+
+# The `candidatesc` target builds candidate C (C1b: CandC_Classifier) plus
+# its test binary. The test main links engine + zoo_t01 (anchor bots) + the
+# CandC TU; the CandC TU only needs the engine for fast_rng().
+build_candidates_c() {
+  echo "[build] -O2 candidates C (C1b: CandC_Classifier) + test"
+  $CXX $CXXFLAGS_OPT -c engine.cpp -o "$BUILD_DIR/engine_candc.o"
+  $CXX $CXXFLAGS_OPT -I. -Izoo -c candidates/candidates_c.cpp \
+      -o "$BUILD_DIR/candidates_c.o"
+  $CXX $CXXFLAGS_OPT -I. -Izoo -c candidates/candidates_c_test.cpp \
+      -o "$BUILD_DIR/candidates_c_test.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t01.cpp -o "$BUILD_DIR/zoo_t01_candc.o"
+  $CXX $CXXFLAGS_OPT "$BUILD_DIR/candidates_c_test.o" \
+      "$BUILD_DIR/candidates_c.o" "$BUILD_DIR/zoo_t01_candc.o" \
+      "$BUILD_DIR/engine_candc.o" -o "$BUILD_DIR/candidates_c_test"
+}
+
+run_candidates_c() {
+  echo "[run] -O2 candidates C behavioral tests"
+  "$BUILD_DIR/candidates_c_test"
+}
+
+# ASan/UBSan build of the CandC test (sanitizer gate).
+build_candidates_c_asan() {
+  echo "[build] -O0 -g ASan/UBSan candidates C test"
+  $CXX $CXXFLAGS_DEBUG -c engine.cpp -o "$BUILD_DIR/engine_candc_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -Izoo -c candidates/candidates_c.cpp \
+      -o "$BUILD_DIR/candidates_c_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -Izoo -c candidates/candidates_c_test.cpp \
+      -o "$BUILD_DIR/candidates_c_test_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -c zoo/zoo_t01.cpp -o "$BUILD_DIR/zoo_t01_candc_dbg.o"
+  $CXX $CXXFLAGS_DEBUG "$BUILD_DIR/candidates_c_test_dbg.o" \
+      "$BUILD_DIR/candidates_c_dbg.o" "$BUILD_DIR/zoo_t01_candc_dbg.o" \
+      "$BUILD_DIR/engine_candc_dbg.o" -o "$BUILD_DIR/candidates_c_test_asan"
+}
+
+run_candidates_c_asan() {
+  echo "[run] ASan/UBSan candidates C behavioral tests"
+  ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/candidates_c_test_asan"
+}
+
 case "${1:-all}" in
-  all)     build_opt; run_opt ;;
-  opt)     build_opt; run_opt ;;
-  run)     run_opt ;;
-  debug)   build_opt; run_opt; build_debug; run_debug ;;
-  fidelity) build_fidelity; run_fidelity ;;
-  campaign) build_campaign; run_campaign ;;
-  zoo)      build_zoo; run_zoo ;;
-  zooasan) build_zoo_asan; run_zoo_asan ;;
-  candidates) build_candidates; run_candidates ;;
+  all)            build_opt; run_opt ;;
+  opt)            build_opt; run_opt ;;
+  run)            run_opt ;;
+  debug)          build_opt; run_opt; build_debug; run_debug ;;
+  fidelity)       build_fidelity; run_fidelity ;;
+  campaign)       build_campaign; run_campaign ;;
+  zoo)            build_zoo; run_zoo ;;
+  zooasan)        build_zoo_asan; run_zoo_asan ;;
+  candidates)     build_candidates; run_candidates ;;
   candidatesasan) build_candidates_asan; run_candidates_asan ;;
-  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|zoo|zooasan|candidates|candidatesasan]" >&2; exit 2 ;;
+  candidatesc)    build_candidates_c; run_candidates_c ;;
+  candidatescasan) build_candidates_c_asan; run_candidates_c_asan ;;
+  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|zoo|zooasan|candidates|candidatesasan|candidatesc|candidatescasan]" >&2; exit 2 ;;
 esac
