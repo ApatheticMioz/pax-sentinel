@@ -169,3 +169,77 @@ Fast mode, 100 always-peace agents, per core (8-core host, `-march=native`):
 
 Both exceed the target of ≥5 full DISTINCT-mode 100-agent tournaments per
 core-second.
+
+---
+
+# Slice B2 — Opponent zoo, Tiers 0 + 1
+
+Single concern: **zoo bots + their behavioral smoke tests**. No candidates,
+no analysis (later slices). Bots are registered in the B1c `Registry` via
+`REGISTER_AGENT(name)`; the `Registry` class and the macro now live in
+`zoo/zoo_common.hpp` (single source of truth — `campaign.cpp` includes it).
+
+## Files
+| file                    | role |
+|-------------------------|------|
+| `zoo/zoo_common.hpp`   | `Registry` + `REGISTER_AGENT` (shared with campaign.cpp), `kZooPayoff`, engine-RNG draw helpers (`zoo_draw_bit`/`zoo_draw_uniform` on `fast_rng()`) |
+| `zoo/zoo_t01.cpp`     | Tier 0 (6 sample bots, RNG routed through the engine) + 28 Tier-1 variants; one factory + one `REGISTER_AGENT` per name |
+| `zoo/zoo_t01_test.cpp`| scripted-history unit tests (≥18 representative bots) + all-zoo 5-run smoke tournament |
+| `build.sh`            | + `./build.sh zoo` target |
+
+## Build / verify
+```
+./build.sh zoo    # -O2 -Wall -Wextra; 33 checks, exit 0 on all-pass
+```
+
+## Registered names (33)
+- **Tier 0:** NiceAgent, NastyAgent, RandomAgent, TolerantAgent, FreakyAgent,
+  T4TAgent.
+- **Tier 1:** TFT_any, TFT_maj, TF2T_any, TF2T_maj, Grim_any, Grim_maj,
+  GTFT_any_g10, GTFT_any_g30, WSLS_naive, Alternator, PeriodicPPW,
+  Freaky25, Freaky75, BrokenTFT_1, Joss10, Detective, NoisyP20, NoisyP80,
+  TolerantW5, TolerantW10, PavlovMaj, RandomWalk, Grim2Any,
+  GrimAnyForgive1, MajWindow3, TitFor2TatAvg, SuckerFirst.
+
+## RNG contract
+Every stochastic bot draws **only** from the engine's thread-local `fast_rng()`
+(sfc64), never `::rand()` and never time-seeded; the engine reseeds it from
+the run's seed, so a run is a pure function of (pool, seed, mode, rng-kind).
+`FreakyAgent`/`FreakyP` draw their one per-match constant in the constructor
+(preserving the sample's "constructor draw precedes the horizon draw"
+ordering); every other constructor is parameter-only.
+
+## Rule-ambiguity decisions (literal readings — flagged per dispatch)
+1. **NoisyP50 not registered.** The dispatch lists it as "NoisyP50 (=Random
+   tier0 variant, skip if dup)". Its literal rule (iid war p=0.5) is
+   behaviorally identical to the Tier-0 `RandomAgent`, so it is omitted to
+   avoid a duplicate name in the pool. (28 Tier-1 bots implemented → 33 total
+   registered, still ≥ the "30+ agent pool" requirement.)
+2. **Grim_anyForgive1 / "10 consecutive rds"** uses the last-10 window
+   (`war_count_last(h,10)==0` for both opponents), i.e. a 10-round calm tail.
+3. **MajWindow3** = a majority (≥2) of the last ≤3 rounds each had *at least
+   one* opponent at war (the "majority of (opp1,opp2) warred" phrasing has no
+   strict 2-opponent majority within a single round, so the round-level
+   reading is the operative one).
+4. **TitFor2TatAvg** = average over all opponent-action slots in the last ≤4
+   rounds (`2*w > total`), the literal "avg opp war-rate".
+5. **RandomWalk trend** = sum-of-my-last-5-payoffs minus the 4/rd all-peace
+   baseline (`4*cnt`), clamped; all-peace history → trend 0 → p=0.5.
+6. **PavlovMaj** collapses to the same payoff-threshold switch as WSLS_naive:
+   in this two-opponent tensor there is no distinct "majority opponent last
+   move" to use as context, so the payoff rule is the operative part.
+
+## Test verdicts (33 checks, all PASS)
+- 18 scripted-history unit checks (deterministic bots) + 9 seeded-stochastic
+  checks (predict the draw with a throwaway `Rng` of the same seed).
+- Smoke tournament: 33-bot pool, 5 runs, fast mode, distinct enumeration —
+  no exceptions, all scores finite, same-seed determinism holds.
+- **Sanity caveat:** the requested inequality "NiceAgent avg vs saint-pair >
+  NastyAgent avg vs saint-pair" is **FALSE** under the literal payoff tensor:
+  in {Peace,Peace,Peace} a Nice player scores 4/rd, but a Nasty player in
+  {War,Peace,Peace} scores `payoff[1][0][0]=6`/rd (both opponent slots are
+  0). The test asserts the exact verifiable values (Nice=4, Nasty=6) and
+  flags the direction rather than the worded inequality. The second sanity
+  ("Grim_any survives vs Nasty-pair better than NiceAgent") **holds**:
+  Grim_any ≈ 0/rd (war vs two war = `payoff[1][1][1]=0`) > Nice = −1/rd
+  (`payoff[0][1][1]=-1`).

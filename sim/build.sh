@@ -66,6 +66,20 @@ run_debug() {
   ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/self_test_asan"
 }
 
+build_zoo() {
+  echo "[build] -O2 zoo (Tiers 0+1) + behavioral smoke tests"
+  $CXX $CXXFLAGS_OPT -c engine.cpp -o "$BUILD_DIR/engine_zoo.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t01.cpp -o "$BUILD_DIR/zoo_t01.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t01_test.cpp -o "$BUILD_DIR/zoo_t01_test.o"
+  $CXX $CXXFLAGS_OPT "$BUILD_DIR/zoo_t01_test.o" "$BUILD_DIR/zoo_t01.o" \
+      "$BUILD_DIR/engine_zoo.o" -o "$BUILD_DIR/zoo_t01_test"
+}
+
+run_zoo() {
+  echo "[run] -O2 zoo behavioral smoke tests"
+  "$BUILD_DIR/zoo_t01_test"
+}
+
 build_fidelity() {
   echo "[build] -O2 fidelity gate (engine + fixture-as-lib + test)"
   $CXX $CXXFLAGS_OPT -c engine.cpp -o "$BUILD_DIR/engine_fidelity.o"
@@ -90,5 +104,6 @@ case "${1:-all}" in
   debug)   build_opt; run_opt; build_debug; run_debug ;;
   fidelity) build_fidelity; run_fidelity ;;
   campaign) build_campaign; run_campaign ;;
-  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign]" >&2; exit 2 ;;
+  zoo)      build_zoo; run_zoo ;;
+  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|zoo]" >&2; exit 2 ;;
 esac

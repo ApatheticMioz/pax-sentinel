@@ -43,6 +43,8 @@
 
 #include "engine.hpp"
 
+#include "zoo/zoo_common.hpp"  // Registry + REGISTER_AGENT (single source of truth)
+
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -61,69 +63,8 @@
 
 namespace mas_sim {
 
-// =============================================================================
-// Global registry
-// =============================================================================
-
-// Process-global table of named agent factories. Registration is idempotent
-// (last write wins for a given name) and safe to call from multiple TUs at
-// static-init time, because each TU registers DISTINCT names in the normal
-// zoo/candidate-bot case.
-class Registry {
- public:
-  using Factory = AgentFactory;
-
-  static Registry& instance() {
-    static Registry r;
-    return r;
-  }
-
-  static bool register_factory(const std::string& name, Factory f) {
-    instance().map_[name] = std::move(f);
-    return true;
-  }
-
-  bool has(const std::string& name) const { return map_.count(name) != 0; }
-
-  Factory get(const std::string& name) const {
-    auto it = map_.find(name);
-    if (it == map_.end()) {
-      throw std::invalid_argument("unknown agent '" + name +
-                                  "' (not registered in this build)");
-    }
-    return it->second;
-  }
-
-  size_t size() const { return map_.size(); }
-
-  std::vector<std::string> names() const {
-    std::vector<std::string> v;
-    v.reserve(map_.size());
-    for (const auto& kv : map_) v.push_back(kv.first);
-    return v;
-  }
-
- private:
-  std::map<std::string, Factory> map_;
-  Registry() = default;
-  Registry(const Registry&) = delete;
-  Registry& operator=(const Registry&) = delete;
-};
-
-// Link-time registration macro. Usage in any TU:
-//
-//   class MyBot : public AgentBase { ... };
-//   AgentFactory make_agent_MyBot() { return []{ return std::make_unique<MyBot>(); }; }
-//   REGISTER_AGENT(MyBot);
-//
-// Expands to a static object whose constructor registers the factory with
-// name "MyBot". Later slices add bots this way without touching this file.
-#define REGISTER_AGENT(name)                                              \
-  static const int mas_reg_agent_##name = []() {                         \
-    ::mas_sim::Registry::register_factory(#name,                        \
-                                          ::mas_sim::make_agent_##name()); \
-    return 0;                                                            \
-  }()
+// Registry + REGISTER_AGENT now live in zoo/zoo_common.hpp (single source of
+// truth). The include at the top of this file brings them into scope here.
 
 // =============================================================================
 // Builtin baseline agents
