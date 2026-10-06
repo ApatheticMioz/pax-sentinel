@@ -66,18 +66,48 @@ run_debug() {
   ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/self_test_asan"
 }
 
+# The `zoo` target links BOTH zoo TUs (t01: Tiers 0+1, t2: Tier 2) and builds
+# one behavioral test binary per TU; each test binary pulls in both agent TUs
+# so the full registered zoo is available for scripted-history and tournament
+# checks.
 build_zoo() {
-  echo "[build] -O2 zoo (Tiers 0+1) + behavioral smoke tests"
+  echo "[build] -O2 zoo (Tiers 0+1+2), both TUs, behavioral tests"
   $CXX $CXXFLAGS_OPT -c engine.cpp -o "$BUILD_DIR/engine_zoo.o"
   $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t01.cpp -o "$BUILD_DIR/zoo_t01.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t2.cpp -o "$BUILD_DIR/zoo_t2.o"
   $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t01_test.cpp -o "$BUILD_DIR/zoo_t01_test.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t2_test.cpp -o "$BUILD_DIR/zoo_t2_test.o"
   $CXX $CXXFLAGS_OPT "$BUILD_DIR/zoo_t01_test.o" "$BUILD_DIR/zoo_t01.o" \
       "$BUILD_DIR/engine_zoo.o" -o "$BUILD_DIR/zoo_t01_test"
+  $CXX $CXXFLAGS_OPT "$BUILD_DIR/zoo_t2_test.o" "$BUILD_DIR/zoo_t2.o" \
+      "$BUILD_DIR/zoo_t01.o" "$BUILD_DIR/engine_zoo.o" -o "$BUILD_DIR/zoo_t2_test"
 }
 
 run_zoo() {
-  echo "[run] -O2 zoo behavioral smoke tests"
+  echo "[run] -O2 zoo behavioral tests (Tiers 0+1, then 2)"
   "$BUILD_DIR/zoo_t01_test"
+  "$BUILD_DIR/zoo_t2_test"
+}
+
+# ASan/UBSan build of both zoo test binaries (sanitizer gate).
+build_zoo_asan() {
+  echo "[build] -O0 -g ASan/UBSan zoo (both TUs) tests"
+  $CXX $CXXFLAGS_DEBUG -c engine.cpp -o "$BUILD_DIR/engine_zoo_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -c zoo/zoo_t01.cpp -o "$BUILD_DIR/zoo_t01_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -c zoo/zoo_t2.cpp -o "$BUILD_DIR/zoo_t2_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -c zoo/zoo_t01_test.cpp -o "$BUILD_DIR/zoo_t01_test_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -c zoo/zoo_t2_test.cpp -o "$BUILD_DIR/zoo_t2_test_dbg.o"
+  $CXX $CXXFLAGS_DEBUG "$BUILD_DIR/zoo_t01_test_dbg.o" "$BUILD_DIR/zoo_t01_dbg.o" \
+      "$BUILD_DIR/engine_zoo_dbg.o" -o "$BUILD_DIR/zoo_t01_test_asan"
+  $CXX $CXXFLAGS_DEBUG "$BUILD_DIR/zoo_t2_test_dbg.o" "$BUILD_DIR/zoo_t2_dbg.o" \
+      "$BUILD_DIR/zoo_t01_dbg.o" "$BUILD_DIR/engine_zoo_dbg.o" \
+      -o "$BUILD_DIR/zoo_t2_test_asan"
+}
+
+run_zoo_asan() {
+  echo "[run] ASan/UBSan zoo behavioral tests (both TUs)"
+  ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/zoo_t01_test_asan"
+  ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/zoo_t2_test_asan"
 }
 
 build_fidelity() {
@@ -105,5 +135,6 @@ case "${1:-all}" in
   fidelity) build_fidelity; run_fidelity ;;
   campaign) build_campaign; run_campaign ;;
   zoo)      build_zoo; run_zoo ;;
-  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|zoo]" >&2; exit 2 ;;
+  zooasan) build_zoo_asan; run_zoo_asan ;;
+  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|zoo|zooasan]" >&2; exit 2 ;;
 esac
