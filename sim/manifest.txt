@@ -1,0 +1,3 @@
+AlwaysPeace 4
+AlwaysWar 1
+AlwaysPeace 1

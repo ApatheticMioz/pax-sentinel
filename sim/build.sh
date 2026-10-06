@@ -6,6 +6,7 @@
 #   ./build.sh            # build -O2 lib + -O2 self-test, run self-test
 #   ./build.sh debug      # also build & run the ASan/UBSan debug self-test
 #   ./build.sh run        # run the -O2 self-test (assumes built)
+#   ./build.sh campaign   # build campaign runner + self-test, run self-test
 #
 # No cmake: plain g++ invocations, one .a, two self-test binaries.
 # =============================================================================
@@ -31,6 +32,25 @@ build_opt() {
 run_opt() {
   echo "[run] -O2 self-test"
   "$BUILD_DIR/self_test"
+}
+
+build_campaign() {
+  echo "[build] -O2 campaign runner + self-test"
+  $CXX $CXXFLAGS_OPT -c engine.cpp -o "$BUILD_DIR/engine.o"
+  $CXX $CXXFLAGS_OPT -c campaign.cpp -o "$BUILD_DIR/campaign.o"
+  ar rcs "$BUILD_DIR/libengine.a" "$BUILD_DIR/engine.o"
+  $CXX $CXXFLAGS_OPT "$BUILD_DIR/campaign.o" "$BUILD_DIR/libengine.a" -pthread \
+      -o "$BUILD_DIR/campaign"
+  $CXX $CXXFLAGS_OPT -c campaign.cpp -o "$BUILD_DIR/campaign_test.o" -DCAMPAIGN_TEST
+  $CXX $CXXFLAGS_OPT -c campaign_self_test_main.cpp -o "$BUILD_DIR/campaign_test_main.o" -DCAMPAIGN_TEST
+  $CXX $CXXFLAGS_OPT "$BUILD_DIR/campaign_test_main.o" "$BUILD_DIR/campaign_test.o" \
+      "$BUILD_DIR/libengine.a" -pthread \
+      -o "$BUILD_DIR/campaign_test"
+}
+
+run_campaign() {
+  echo "[run] -O2 campaign self-test"
+  "$BUILD_DIR/campaign_test"
 }
 
 build_debug() {
@@ -69,5 +89,6 @@ case "${1:-all}" in
   run)     run_opt ;;
   debug)   build_opt; run_opt; build_debug; run_debug ;;
   fidelity) build_fidelity; run_fidelity ;;
-  *) echo "usage: $0 [all|opt|run|debug|fidelity]" >&2; exit 2 ;;
+  campaign) build_campaign; run_campaign ;;
+  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign]" >&2; exit 2 ;;
 esac
