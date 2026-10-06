@@ -46,10 +46,28 @@ run_debug() {
   ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/self_test_asan"
 }
 
+build_fidelity() {
+  echo "[build] -O2 fidelity gate (engine + fixture-as-lib + test)"
+  $CXX $CXXFLAGS_OPT -c engine.cpp -o "$BUILD_DIR/engine_fidelity.o"
+  $CXX $CXXFLAGS_OPT -I. -c fidelity/sample_fixture.cpp \
+      -o "$BUILD_DIR/sample_fixture.o" -DSAMPLE_FIXTURE_AS_LIB
+  $CXX $CXXFLAGS_OPT -I. -c fidelity/fidelity_test.cpp \
+      -o "$BUILD_DIR/fidelity_test.o"
+  $CXX $CXXFLAGS_OPT "$BUILD_DIR/fidelity_test.o" \
+      "$BUILD_DIR/sample_fixture.o" "$BUILD_DIR/engine_fidelity.o" \
+      -o "$BUILD_DIR/fidelity_test"
+}
+
+run_fidelity() {
+  echo "[run] -O2 fidelity gate"
+  "$BUILD_DIR/fidelity_test"
+}
+
 case "${1:-all}" in
   all)     build_opt; run_opt ;;
   opt)     build_opt; run_opt ;;
   run)     run_opt ;;
   debug)   build_opt; run_opt; build_debug; run_debug ;;
-  *) echo "usage: $0 [all|opt|run|debug]" >&2; exit 2 ;;
+  fidelity) build_fidelity; run_fidelity ;;
+  *) echo "usage: $0 [all|opt|run|debug|fidelity]" >&2; exit 2 ;;
 esac
