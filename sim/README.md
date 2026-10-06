@@ -243,3 +243,81 @@ ordering); every other constructor is parameter-only.
   ("Grim_any survives vs Nasty-pair better than NiceAgent") **holds**:
   Grim_any ≈ 0/rd (war vs two war = `payoff[1][1][1]=0`) > Nice = −1/rd
   (`payoff[0][1][1]=-1`).
+
+---
+
+# Slice C1a — candidate arms A (GTFT-3P baseline) + B (k-lenient dithered
+# retaliator)
+
+Single concern: **the two candidate control/baseline bots + their
+behavioral tests**. No candidate C/E, no campaign runs (later slices).
+CandB is a SEPARATE parameterized implementation of the KLenient idea —
+`zoo_t2.cpp`'s `KLenient2/3` stay fixed-parameter zoo bots.
+
+## Files
+| file                          | role |
+|-------------------------------|------|
+| `candidates/candidates_ab.hpp`| parameter structs + factories (added beyond the 2-file dispatch so the test TU can build g/eps=0/1/1 deterministic variants) |
+| `candidates/candidates_ab.cpp`| CandA_GTFT + CandB_KLenient classes, factories, `REGISTER_AGENT(CandA_GTFT)` / `(CandB_KLenient)` |
+| `candidates/candidates_ab_test.cpp` | 10 scripted-history scenarios per candidate + 8-bot smoke tournament + 3 sanity checks |
+| `build.sh`                    | + `./build.sh candidates` and `./build.sh candidatesasan` (ASan/UBSan) targets |
+
+## Build / verify
+```
+./build.sh candidates       # -O2 -Wall -Wextra; 27 checks, exit 0
+./build.sh candidatesasan   # ASan/UBSan build of the same test
+```
+
+## Behavior
+- **CandA_GTFT** (open peace; `CandAParams{g=0.5}`): war iff ≥1 opp warred
+  last rd, EXCEPT forgive (peace) when exactly one opp warred last rd and
+  that opp had zero wars in the 3 rounds before the last (rds n-4..n-2
+  under the 0-based convention, i.e. indices [n-4, n-1) clamped) — forgive
+  w.p. g via a fast_rng draw; both-war last rd → always war.
+- **CandB_KLenient** (open peace; `CandBParams{window=3,thresh=2,punish=2,
+  amnesty=3,eps=0.2,jitter=1}`): trigger = any opp with ≥thresh wars in
+  the last `window` rds; a sub-threshold war (1≤count<thresh) is
+  **forgiven w.p. eps, with the draw made BEFORE counting** (spec); a
+  trigger starts a punish phase of `punish` war rounds (incl. the trigger
+  round — the zoo KLenient bookkeeping convention), then an amnesty of
+  `amnesty` ± `jitter` peace rounds (one fast_rng draw).
+
+## Rule-ambiguity decisions (flagged per dispatch)
+1. **g/eps degenerate values (0/1) short-circuit without an RNG draw**,
+   making the g=0/1 and eps=0/1 variants fully deterministic (the dispatch
+   asks for them to be "deterministic variants"; a strict draw at p=0/1
+   would still consume a stream value and break determinism of the
+   non-stochastic path).
+2. **CandA isolation window**: "rds n-4..n-2" is read as the 3 rounds
+   before the last one (0-based indices [n-4, n-1), clamped), matching the
+   zoo's 0-based window readings.
+3. **CandB "war 2 rds" INCLUDES the trigger round** (2 war rounds total,
+   i.e. trigger + 1), the exact zoo KLenient2 convention the dispatch cites
+   as the model.
+
+## Test verdicts (27 checks, all PASS)
+- 10 CandA scripted-history scenarios (both-peace; isolated g=1/g=0;
+  non-isolated; both-war; n=1 boundary; cross-opp isolation; opp2
+  symmetry; g=0.5 seeded draw) + 10 CandB scenarios (0/1/2-war windows;
+  eps=0/1/0.2; punish/amnesty machine; jitter prediction; window clamping;
+  machine-override; opp2 trigger).
+- Jitter probe: with the seed set right before the single jitter draw, the
+  observed amnesty length equals the predicted 3+jitter for all three
+  lengths {2,3,4} across 8 independent seeds (cross-checked separately).
+- Smoke: CandA + CandB + 6 zoo anchors, 5 runs, distinct mode — no
+  exceptions, all scores finite, same-seed determinism holds.
+- **Sanity:**
+  - CandA vs {NiceAgent, TolerantAgent} = **4.00/rd** (≥ 3.8, PASS).
+  - CandB vs {NastyAgent, NastyAgent} = **−0.60/rd**. The dispatch range
+    [−0.5, 0.1]/rd is **unsatisfiable** (flagged, B2/B3a precedent): the
+    window is saturated (3/3 wars), so the cycle is 2×payoff[1][1][1]=0 +
+    (3±1)×payoff[0][1][1]=−1; renewal-reward rate = −E[K]/E[2+K] = −3/5.
+    Asserted true band [−0.75, −0.4].
+  - CandA vs {NastyAgent, NastyAgent} = **−0.010/rd**. The dispatch bound
+    "≥ 2.5/rd" is **arithmetically impossible** (flagged): the per-round
+    ceiling with two war-forever opponents is 0; a ≥2.5 magnitude is only
+    reachable vs mostly-peace opponents (4.0/rd in check a). Asserted the
+    true value plus the "not a sucker" property: CandA (−0.01)
+    out-survives NiceAgent (−1.00) on the same pair.
+- Build clean `-Wall -Wextra` (both opt and ASan variants, zero
+  warnings); both test binaries exit 0; ASan/UBSan/LeakSan clean.

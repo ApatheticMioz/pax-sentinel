@@ -7,6 +7,8 @@
 #   ./build.sh debug      # also build & run the ASan/UBSan debug self-test
 #   ./build.sh run        # run the -O2 self-test (assumes built)
 #   ./build.sh campaign   # build campaign runner + self-test, run self-test
+#   ./build.sh candidates   # build candidates (C1a) + tests, run tests
+#   ./build.sh candidatesasan  # ASan/UBSan candidates tests
 #
 # No cmake: plain g++ invocations, one .a, two self-test binaries.
 # =============================================================================
@@ -139,6 +141,49 @@ run_fidelity() {
   "$BUILD_DIR/fidelity_test"
 }
 
+
+# The `candidates` target builds candidate CandA_GTFT + CandB_KLenient (slice
+# C1a) plus their test binary. The test main links engine + zoo_t01 (anchor
+# bots) + the candidates TU; the candidates TU itself only needs the engine
+# for fast_rng() (zoo_common.hpp is included for the shared contract header,
+# no zoo agent symbols are required).
+build_candidates() {
+  echo "[build] -O2 candidates (C1a) + test"
+  $CXX $CXXFLAGS_OPT -c engine.cpp -o "$BUILD_DIR/engine_cand.o"
+  $CXX $CXXFLAGS_OPT -I. -Izoo -c candidates/candidates_ab.cpp \
+      -o "$BUILD_DIR/candidates_ab.o"
+  $CXX $CXXFLAGS_OPT -I. -Izoo -c candidates/candidates_ab_test.cpp \
+      -o "$BUILD_DIR/candidates_ab_test.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t01.cpp -o "$BUILD_DIR/zoo_t01_cand.o"
+  $CXX $CXXFLAGS_OPT "$BUILD_DIR/candidates_ab_test.o" \
+      "$BUILD_DIR/candidates_ab.o" "$BUILD_DIR/zoo_t01_cand.o" \
+      "$BUILD_DIR/engine_cand.o" -o "$BUILD_DIR/candidates_ab_test"
+}
+
+run_candidates() {
+  echo "[run] -O2 candidates behavioral tests"
+  "$BUILD_DIR/candidates_ab_test"
+}
+
+# ASan/UBSan build of the candidates test (sanitizer gate).
+build_candidates_asan() {
+  echo "[build] -O0 -g ASan/UBSan candidates test"
+  $CXX $CXXFLAGS_DEBUG -c engine.cpp -o "$BUILD_DIR/engine_cand_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -Izoo -c candidates/candidates_ab.cpp \
+      -o "$BUILD_DIR/candidates_ab_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -Izoo -c candidates/candidates_ab_test.cpp \
+      -o "$BUILD_DIR/candidates_ab_test_dbg.o"
+  $CXX $CXXFLAGS_DEBUG -I. -c zoo/zoo_t01.cpp -o "$BUILD_DIR/zoo_t01_cand_dbg.o"
+  $CXX $CXXFLAGS_DEBUG "$BUILD_DIR/candidates_ab_test_dbg.o" \
+      "$BUILD_DIR/candidates_ab_dbg.o" "$BUILD_DIR/zoo_t01_cand_dbg.o" \
+      "$BUILD_DIR/engine_cand_dbg.o" -o "$BUILD_DIR/candidates_ab_test_asan"
+}
+
+run_candidates_asan() {
+  echo "[run] ASan/UBSan candidates behavioral tests"
+  ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/candidates_ab_test_asan"
+}
+
 case "${1:-all}" in
   all)     build_opt; run_opt ;;
   opt)     build_opt; run_opt ;;
@@ -148,5 +193,7 @@ case "${1:-all}" in
   campaign) build_campaign; run_campaign ;;
   zoo)      build_zoo; run_zoo ;;
   zooasan) build_zoo_asan; run_zoo_asan ;;
-  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|zoo|zooasan]" >&2; exit 2 ;;
+  candidates) build_candidates; run_candidates ;;
+  candidatesasan) build_candidates_asan; run_candidates_asan ;;
+  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|zoo|zooasan|candidates|candidatesasan]" >&2; exit 2 ;;
 esac
