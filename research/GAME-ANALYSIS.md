@@ -69,6 +69,51 @@ compositions. See `LITERATURE.md` §6 for archetype frequencies (planning ranges
 
 ## 5. Candidate arms & verdicts
 
+### 5.0 Phase-C screening verdict (20,000 CRN runs, prior pool, 2026-10-07) — E/C killed, pivot to F
+
+Screening: arms {A, B, C, E} × 5,000 runs each, prior composition, seed 731842, mode
+distinct. Fair single-entry comparison (coworker verification, ties→index-0):
+
+| Entry (as our agent) | mean score | mean rank | P(#1) |
+|---|---|---|---|
+| CTFT3P | 12,906 | ~1.1 per-copy | **0.088** |
+| TFT_any | 12,906 | ~1.1 per-copy | **0.083** |
+| CandA_GTFT | 12,825 | 13.3 | 0.0008 |
+| CandB_KLenient | 12,200 | 54.9 | 0.000 |
+| CandE_Hybrid | 10,290 | 69.5 | 0.000 |
+| CandC_Classifier | 10,202 | 72.1 | 0.000 |
+
+Findings (CRN-paired, sd ≈ 65 on 5,000-run diffs):
+1. **Probe-based exploitation is killed on the prior composition.** E/C collapse ~70 ranks;
+   A > E by +2,535 (P(beat) = 1.000, 5000/5000). Root cause: the retaliatory mass
+   (TFT-family 28%, grim 8%, tolerant 19%) punishes every leaked war-round; probe EV ≈
+   −60/match expected (a provoked grim locks at 0/rd ≈ −400/match at ~15% grim-per-pair
+   incidence; saints — the only prey worth ≈ +190/match — are indistinguishable from clean
+   TFTs without probing, and probing is exactly what poisons the TFT mass).
+2. **The crown archetype is the zero-leak fast retaliator.** CTFT3P/TFT_any per-entry
+   P(#1) ≈ 0.083–0.088 at mean 12,906; A is −82 short (CRN-paired; −141 vs the best
+   correlated copy). The 100-way race is a threshold race: beat ≈ 12,906 and the crown
+   moves. (TFT_any's 10 correlated copies take the top slot in 91% of runs ties-included;
+   per-entry crown chance is the 0.083 figure.)
+3. **The unexploited lever is the endgame.** No top-cluster archetype ever defects first,
+   even at round 109 of ≤110. Against the clean ~4/rd mass, war only when the horizon hazard
+   q = 1/(111−t) makes retaliation impossible-or-bounded is worth +1..+4/match across
+   thousands of matches — a class-free exploiter that needs no classifier and cannot lock
+   (the match ends). Zoo EndgameGTFT (rank 42, mean 12,520) warns the onset must be late.
+
+The arms list below predates screening; C and E are superseded by this verdict, and the
+ship candidate is now **F** (§5.x, implemented as CandF_Ramp).
+
+### 5.x Arm F — RampEndgame (ship candidate v2)
+
+CTFT3P backbone + double-war override + endgame ramp: (R0) nice opening; (R1) contrite-TFT
+echo; (R2) never Peace when both opps warred last round (A's forgive-1 peaced into 2-war
+states at −1/rd — primary suspect for the −82 mean-gap vs TFT_any); (R3) endgame ramp for
+n ≥ 90 (horizon uniform 90–110 is never known to the agent), two parameterizations:
+threshold T (War iff n ≥ T) and q-hazard (War w.p. min(1, c/(111−n))); ramp-wars committed
+(no contrition inside the window); no probes ever; own PRNG. Grid arbitrates ramp shape and
+onset.
+
 - **A — GTFT-3P baseline** (control): Peace; War iff either opp warred last round; 1-shot
   forgiveness. Solid vs responsive majority; misses saint exploitation; disguised-saint trap
   ≈ −240/match.
