@@ -1,0 +1,60 @@
+# AI4012 — Assignment #3: Three-Way Repeated Peace-War Tournament
+
+## 1. Overview & Tournament Setup
+- **Course**: AI4012 — Assignment #3
+- **Due Date**: Monday, October 12th
+- **Tournament Scale**: ~100 students will each submit an agent file.
+- **Evaluation & Grading**: 
+  - Marks are awarded primarily on the basis of final standings in a repeated tournament played with the single submitted agent file.
+  - Evaluation also considers the cleverness and sophistication of the strategy relative to classmates.
+
+---
+
+## 2. Game Mechanics & Dynamics
+- **Game Type**: Three-Way Repeated Peace-War (a 3-player variant of the Continuous/Repeated Prisoner's Dilemma).
+- **Actions**:
+  - `0`: Peace
+  - `1`: War
+- **Match Structure**:
+  - Triples of agents are matched against each other and play repeatedly.
+  - Each match consists of approximately 100 rounds.
+  - A player's match score is the average of the payoffs earned in each round:
+    $$\text{Score} = \lim_{k \to \infty} \frac{1}{k} \sum_{j=1}^{k} r_j \quad (\approx \text{average payoff over ~100 rounds})$$
+- **Game Theoretic Context**:
+  - In a single-stage Peace-War game, the dominant strategy equilibrium is for all agents to choose War (1), even though all players achieve mutual benefit by choosing Peace (0).
+  - In repeated play, cooperative equilibria can emerge. Strategies can track historical interactions to reward cooperation or punish defection (e.g., Tit-for-Tat, Grim Trigger).
+
+---
+
+## 3. Agent Interface & Technical Specification
+- **Language**: C++ (compiled via `g++ ThreeWayPeaceWar.cpp`).
+- **Base Class**: Inherits from `Agent`.
+- **Method Signature**:
+```cpp
+class <YourAgentName> : public Agent {
+public:
+    int selectAction(int n,
+                     const std::vector<int>& myHistory,
+                     const std::vector<int>& oppHistory1,
+                     const std::vector<int>& oppHistory2);
+};
+```
+- **Parameters**:
+  - `n`: Total number of rounds elapsed so far in the current match.
+  - `myHistory`: `std::vector<int>` containing your agent's past actions in the match.
+  - `oppHistory1`: `std::vector<int>` containing Opponent 1's past actions in the match.
+  - `oppHistory2`: `std::vector<int>` containing Opponent 2's past actions in the match.
+- **Return Value**: Integer action for the current round (`0` for Peace, `1` for War).
+
+---
+
+## 4. Submission Instructions & Constraints
+- **File Format**: A single `.cpp` file containing only your agent class definition.
+- **Naming Convention**: 
+  - File name: `<student-id>-<Name>Agent.cpp` (e.g., `i230334-SaadAgent.cpp`).
+  - Class name: `<student-id>-<Name>Agent` (e.g., `class i230334-SaadAgent : public Agent`).
+  - *Note*: Incorrectly named agents will not be marked.
+- **Strict Constraints**:
+  - Must be self-contained in a single file.
+  - Do NOT modify the payoff matrix or tournament runner code.
+  - Do NOT add external dependencies or extra header files beyond standard tournament dependencies.
