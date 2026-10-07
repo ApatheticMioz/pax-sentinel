@@ -19,8 +19,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 CXX="${CXX:-g++}"
-CXXFLAGS_OPT="-O2 -march=native -std=c++17 -Wall -Wextra"
-CXXFLAGS_DEBUG="-O0 -g -std=c++17 -Wall -Wextra -fsanitize=address,undefined -fno-omit-frame-pointer -DENGINE_SANITIZED"
+# -static-libgcc -static-libstdc++: this machine's MSYS2 install is missing
+# shared-runtime import libraries (libgcc_s.dll.a confirmed absent), which
+# breaks any link pulling emutls/TLS symbols (thread_local) against the shared
+# runtimes. Static linking is semantically identical here; the proper repair
+# is `pacman -S mingw-w64-ucrt-x86_64-gcc` (user action).
+CXXFLAGS_OPT="-O2 -march=native -std=c++17 -Wall -Wextra -static-libgcc -static-libstdc++"
+CXXFLAGS_DEBUG="-O0 -g -std=c++17 -Wall -Wextra -static-libgcc -static-libstdc++ -fsanitize=address,undefined -fno-omit-frame-pointer -DENGINE_SANITIZED"
 BUILD_DIR="build"
 mkdir -p "$BUILD_DIR"
 
@@ -268,6 +273,28 @@ run_candidates_e_asan() {
   ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/candidates_e_test_asan"
 }
 
+# `campaign_full` builds the production screening binary: campaign runner
+# linked with the FULL registry (zoo Tiers 0-3 + all candidate arms).
+build_campaign_full() {
+  echo "[build] -O2 campaign_full (engine + zoo 0-3 + candidates A/B/C/E + runner)"
+  $CXX $CXXFLAGS_OPT -c engine.cpp -o "$BUILD_DIR/engine.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t01.cpp -o "$BUILD_DIR/zoo_t01.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t2.cpp -o "$BUILD_DIR/zoo_t2.o"
+  $CXX $CXXFLAGS_OPT -I. -c zoo/zoo_t3.cpp -o "$BUILD_DIR/zoo_t3.o"
+  $CXX $CXXFLAGS_OPT -I. -Izoo -c candidates/candidates_ab.cpp -o "$BUILD_DIR/candidates_ab.o"
+  $CXX $CXXFLAGS_OPT -I. -Izoo -c candidates/candidates_c.cpp -o "$BUILD_DIR/candidates_c.o"
+  $CXX $CXXFLAGS_OPT -I. -Izoo -c candidates/candidates_e.cpp -o "$BUILD_DIR/candidates_e.o"
+  $CXX $CXXFLAGS_OPT -I. -c campaign.cpp -o "$BUILD_DIR/campaign.o"
+  $CXX $CXXFLAGS_OPT "$BUILD_DIR/campaign.o" "$BUILD_DIR/candidates_e.o" \
+      "$BUILD_DIR/candidates_c.o" "$BUILD_DIR/candidates_ab.o" \
+      "$BUILD_DIR/zoo_t3.o" "$BUILD_DIR/zoo_t2.o" "$BUILD_DIR/zoo_t01.o" \
+      "$BUILD_DIR/engine.o" -pthread -o "$BUILD_DIR/campaign_full"
+}
+
+run_campaign_full() {
+  echo "[build] campaign_full linked (smoke: run a 1-run tiny manifest manually)"
+}
+
 case "${1:-all}" in
   all)            build_opt; run_opt ;;
   opt)            build_opt; run_opt ;;
@@ -275,6 +302,7 @@ case "${1:-all}" in
   debug)          build_opt; run_opt; build_debug; run_debug ;;
   fidelity)       build_fidelity; run_fidelity ;;
   campaign)       build_campaign; run_campaign ;;
+  campaign_full)  build_campaign_full; run_campaign_full ;;
   zoo)            build_zoo; run_zoo ;;
   zooasan)        build_zoo_asan; run_zoo_asan ;;
   candidates)     build_candidates; run_candidates ;;
@@ -283,5 +311,5 @@ case "${1:-all}" in
   candidatescasan) build_candidates_c_asan; run_candidates_c_asan ;;
   candidatese)    build_candidates_e; run_candidates_e ;;
   candidateseasan) build_candidates_e_asan; run_candidates_e_asan ;;
-  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|zoo|zooasan|candidates|candidatesasan|candidatesc|candidatescasan|candidatese|candidateseasan]" >&2; exit 2 ;;
+  *) echo "usage: $0 [all|opt|run|debug|fidelity|campaign|campaign_full|zoo|zooasan|candidates|candidatesasan|candidatesc|candidatescasan|candidatese|candidateseasan]" >&2; exit 2 ;;
 esac

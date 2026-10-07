@@ -1,0 +1,54 @@
+NiceAgent 2
+NastyAgent 2
+RandomAgent 2
+TolerantAgent 2
+FreakyAgent
+T4TAgent 2
+TFT_any 2
+TFT_maj 2
+TF2T_any
+TF2T_maj
+Grim_any 2
+Grim_maj
+GTFT_any_g10
+GTFT_any_g30
+WSLS_naive
+Alternator
+PeriodicPPW
+Freaky25
+Freaky75
+BrokenTFT_1 2
+Joss10
+Detective
+NoisyP20
+NoisyP80
+TolerantW5 2
+TolerantW10 2
+PavlovMaj
+RandomWalk
+Grim2Any
+GrimAnyForgive1
+MajWindow3
+TitFor2TatAvg
+SuckerFirst
+Prober_DDCC
+SaintHunter
+Gradual3P
+CTFT3P
+Omega3P
+GenZD3P
+KLenient2
+KLenient3
+EndgameGTFT
+HybridA
+HybridB
+FreqLearner
+MarkovLearner
+CycleFitter
+AntiExploit
+T4Tsmart
+ZDExtort3P
+CounterProber
+AdaptModel5
+ColludeSqueeze
+MetaV1
