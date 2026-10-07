@@ -34,6 +34,15 @@ their own action and the number of War players among the other two:
    classification*: hopeless pairs get War, unburned coalitions hold Peace at 4/round.
 3. **Ceiling table** (per round): exploit 2 saints = 6; farm Tolerant-class at safe rate ≈ 4+2r\*
    (r\*≈0.4 ⇒ ≈4.8); mutual peace = 4; War vs 1 warrior = 3; all-War = 0; Peace vs any war ≤ 1.
+4. **[Discovered in C1c-v2a verification] TFT-pair self-lock**: a pair of `war-iff-either-opponent-warred`
+   (TFT_any) classmates locks *itself* into all-War from the first shared war onward — each copies the
+   other, so no third-party action (contrition, peace, anything) breaks the B↔C lock; best response
+   ≈ War (≈0.16/rd over a full match incl. early rounds). Verified by direct trace (contrite
+   reference policy: −0.73/rd; commit: 0.09/rd). Consequences: (a) TFT_any-pair triples are a
+   ~0/rd wash for every entrant — no relative edge exists there; (b) our edge vs the TFT-family
+   comes from *mixed* triples ({TFT_any, X}); (c) since TFT_any is the modal classmate archetype,
+   many tournament matches are predetermined washes — the ranking is decided on the exploitable
+   and responsive masses.
 4. **Random-opponent EV** (War 3.0 > Peace 1.0 against a lone 50/50; joint-pair math in
    brainstorm) ⇒ classification must be **joint over the pair**, never per-opponent naive.
 
