@@ -137,6 +137,24 @@ Findings:
    extension T98/T100/T102 probes the lower floor (zoo EndgameGTFT at rank 42 warns much
    earlier onsets collapse).
 
+### 5.z Ramp onset bracket (complete) — T104 frozen
+
+Full onset curve (4,000 CRN runs/arm, seed 731842):
+
+| T | 98 | 100 | 102 | **104** | 106 | 108 | off |
+|---|---|---|---|---|---|---|---|
+| P(#1) | .063 | .093 | .114 | **.119** | .110 | .099 | .085 |
+| mean | 12,894 | 12,906 | 12,912 | **12,914** | 12,913 | 12,910 | 12,906 |
+| P(top-3) | .213 | .284 | .315 | **.317** | .308 | .276 | .252 |
+
+Smooth unimodal curve, peak bracketed on both sides. CRN-paired vs T104: T102 −1.6
+[−2.9, −0.3] (CI excludes 0), T100 −7.4, T98 −19.2, T106 −0.9 [−2.1, +0.3], T108 −4.1.
+**Ramp frozen: ramp_mode=1, ramp_T=104. Ship candidate: CandF_T104.** The mechanism reads
+cleanly: earlier onsets pay retaliation locks while long horizons remain (T98 loses
+−19 to T104); later onsets forfeit harvest rounds (T108 −4). T104 = "commit only when
+≤6 rounds remain" is the empirical crossover on this composition; hold-out families test
+whether the crossover moves with composition.
+
 - **A — GTFT-3P baseline** (control): Peace; War iff either opp warred last round; 1-shot
   forgiveness. Solid vs responsive majority; misses saint exploitation; disguised-saint trap
   ≈ −240/match.
