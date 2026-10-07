@@ -64,7 +64,7 @@
 //     0/1 short-circuit without a draw never triggers here).
 //   * Stateless per call (like CTFT3P): the engine constructs a fresh
 //     agent per match, so nothing else to keep.
-//   * Registered via REGISTER_AGENT(CandF) and the five named variants.
+//   * Registered via REGISTER_AGENT(CandF) and the eight named variants.
 // =============================================================================
 
 #include "candidates_f.hpp"
@@ -136,6 +136,27 @@ AgentFactory make_CandF(const CandFParams& p) {
 }
 
 // Named variants (registered; names are the literal dispatch tokens).
+AgentFactory make_CandF_T98() {
+  CandFParams p;
+  p.ramp_mode = 1;
+  p.ramp_T = 98;
+  return make_CandF(p);
+}
+
+AgentFactory make_CandF_T100() {
+  CandFParams p;
+  p.ramp_mode = 1;
+  p.ramp_T = 100;
+  return make_CandF(p);
+}
+
+AgentFactory make_CandF_T102() {
+  CandFParams p;
+  p.ramp_mode = 1;
+  p.ramp_T = 102;
+  return make_CandF(p);
+}
+
 AgentFactory make_CandF_T104() {
   CandFParams p;
   p.ramp_mode = 1;
@@ -170,6 +191,9 @@ AgentFactory make_CandF_mode0() {
 
 // Registry-facing factories.
 AgentFactory make_agent_CandF() { return make_CandF(); }
+AgentFactory make_agent_CandF_T98() { return make_CandF_T98(); }
+AgentFactory make_agent_CandF_T100() { return make_CandF_T100(); }
+AgentFactory make_agent_CandF_T102() { return make_CandF_T102(); }
 AgentFactory make_agent_CandF_T104() { return make_CandF_T104(); }
 AgentFactory make_agent_CandF_T106() { return make_CandF_T106(); }
 AgentFactory make_agent_CandF_T108() { return make_CandF_T108(); }
@@ -178,6 +202,9 @@ AgentFactory make_agent_CandF_mode0() { return make_CandF_mode0(); }
 
 // Link-time registration (names are the literal dispatch tokens).
 REGISTER_AGENT(CandF);
+REGISTER_AGENT(CandF_T98);
+REGISTER_AGENT(CandF_T100);
+REGISTER_AGENT(CandF_T102);
 REGISTER_AGENT(CandF_T104);
 REGISTER_AGENT(CandF_T106);
 REGISTER_AGENT(CandF_T108);

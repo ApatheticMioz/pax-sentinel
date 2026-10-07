@@ -9,7 +9,7 @@
 //
 // Added beyond a single .cpp on purpose: "params exposed in struct +
 // factory" requires a cross-TU declaration so the test TU can build the
-// named variants (T104/T106/T108/mode2/mode0). Implementation +
+// named variants (T98/T100/T104/T106/T108/mode2/mode0). Implementation +
 // registration live in candidates_f.cpp.
 // =============================================================================
 
@@ -48,11 +48,16 @@ struct CandFParams {
 AgentFactory make_CandF(const CandFParams& p = CandFParams());
 
 // Named variants (registered alongside each other):
+//   CandF_T98  = mode 1, ramp_T = 98;
+//   CandF_T100 = mode 1, ramp_T = 100;
 //   CandF_T104 = mode 1, ramp_T = 104;
 //   CandF_T106 = mode 1, ramp_T = 106 (the default arm);
 //   CandF_T108 = mode 1, ramp_T = 108;
 //   CandF_mode2 = mode 2 (q-hazard, default ramp_c);
 //   CandF_mode0 = mode 0 (ramp off; the pure deterministic mirror).
+AgentFactory make_CandF_T98();
+AgentFactory make_CandF_T100();
+AgentFactory make_CandF_T102();
 AgentFactory make_CandF_T104();
 AgentFactory make_CandF_T106();
 AgentFactory make_CandF_T108();
