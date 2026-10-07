@@ -70,16 +70,30 @@
 //           is a clean memoryless mirror (no backbone machine), so the
 //           machine's last window phase does not leak into the responsive
 //           phase;
-//       (c)  both silent -> EXPLOITABLE-SILENT: farm at the partner-
-//           adjusted effective rate r = r_star + partner_adj*(partner_warrate
-//           - 0.3), clamped to [0.2, 0.55], one iid fast_rng draw per round
-//           (0/1 short-circuit without a draw); a single opp war is an
-//           immediate single-round war response ("3/rd regime, never
-//           absorb"); >=2 opp wars within any flip_win-rd post-classify
-//           window flips the pair to responsive handling (one-way, CandC
-//           precedent — the backbone amnesty is suppressed while the pair is
-//           in the exploit-harvest regime, per R3, and the flip simply moves
-//           the pair to the clean responsive policy).
+//       (c)  both silent -> EXPLOITABLE-SILENT: the exploit-phase
+//           war-rate schedule (v2b; `escalate_mode`):
+//             * mode 0 FIXED (CandE_fixed): the ORIGINAL fixed farming —
+//               partner-adjusted r = r_star + partner_adj*(partner_warrate
+//               - 0.3), clamped to [0.2, 0.55], every round;
+//             * mode 1 STAGED (CandE_Hybrid, default): war-rate r(k) by
+//               rounds-since-classify k = n - classify_end - 1:
+//                 k <  escalate_stage2_rd  -> stage1 band: the
+//                       partner_adj formula applies in THIS band only
+//                       (base stage1_rate, clamped [0.2, 0.55]);
+//                 k in [escalate_stage2_rd, escalate_commit_rd) -> the fixed
+//                       stage2_rate (no partner adj);
+//                 k >= escalate_commit_rd -> 1.0 (commit: pure war, no draw);
+//             * mode 2 COMMIT (CandE_commit): pure war from classify_end+1
+//               (immediate commit; k >= 0).
+//           One iid fast_rng draw per scheduled round (0/1 short-circuit
+//           without a draw; the 0.55/0.2 clamp applies in mode 0 and the
+//           STAGED stage1 band only — stage2/commit bands are fixed).
+//       In ALL modes: a single opp war is an immediate single-round war
+//       response ("3/rd regime, never absorb") and the schedule STAYS ARMED
+//       (it re-evaluates next round; the escalation never downgrades on a
+//       late switch); >=2 opp wars within any flip_win-rd post-classify
+//       window flips the pair to responsive handling (one-way, CandC
+//       precedent — the flip-guard is identical across all three modes).
 //   R6  UNCERTAIN default (classify window, no trigger active): peace (the
 //       4-stream protection).
 //
@@ -128,6 +142,23 @@
 //      action itself honors the endgame (a break round at n >=
 //      endgame_responsive wars instead of peacing, aborting the break —
 //      "R3 endgame still applies" is implemented as that override).
+//  11. v2b "war from classify_end+1" (mode 2) and "k = rounds-since-
+//      classify" (mode 1): the FIRST call with n >= classify_end+1 is the
+//      classify call itself, so the post-classify exploit phase runs on
+//      calls n = classify_end+1 .. endgame-1; k = n - (classify_end+1)
+//      counts completed exploit-phase rounds (k=0 on the classify call).
+//      Mode 2 therefore commits from the classify call itself (k >= 0).
+//      The flip-guard window is unchanged ([classify_end+1, n), i.e. it
+//      never looks back into the pre-classify window) in all three modes.
+//  12. v2b "partner_adj formula applies in this band only" (mode 1,
+//      stage1 band): the partner-adjusted rate is
+//      r = stage1_rate + partner_adj*(partner_warrate - 0.3), clamped to
+//      [0.2, 0.55] — i.e. the ORIGINAL R5 formula with stage1_rate
+//      replacing r_star (r_star itself is ignored in mode 1). The stage2
+//      and commit bands use fixed rates (no partner adj, no clamp needed:
+//      stage2_rate and 1.0 are already in [0,1]); the 0/1 short-circuit
+//      without a draw still applies (e.g. a stage2_rate of 0 or 1 is
+//      deterministic).
 //
 // Conventions (sim/README.md §C1a/C1b + zoo/zoo_common.hpp):
 //   * n == number of completed rounds; "rd k" is the 0-based index k.
@@ -529,28 +560,55 @@ class CandEHybrid : public AgentBase {
     return 0;
   }
 
-  // R5: one round in the exploit (both-silent) phase. R3 endgame is top
-  // priority (it suppresses the backbone); then the flip detector; then the
-  // late-switch guard; then the partner-adjusted farm.
+  // R5: one round in the exploit (both-silent) phase. Precedence: R3
+  // endgame (top, suppresses the schedule); the flip-guard (one-way
+  // downgrade to responsive); the late-switch single-response (the
+  // escalation schedule stays ARMED — it re-evaluates next round); then the
+  // mode-specific war-rate (the v2b escalation schedule).
   int exploit_round(int n, const std::vector<int>& o1,
                     const std::vector<int>& o2) {
-    // R3 endgame: exploitable-silent -> pure war (backbone suppressed).
+    // R3 endgame: exploitable-silent -> pure war (schedule suppressed).
     if (n >= p_.endgame_exploit) return 1;
 
-    // (b) flip detector: >=2 wars by an opp in any flip_win-rd post-classify
-    // window -> one-way downgrade to responsive handling.
+    // (b) flip-guard: >=2 wars by an opp in any flip_win-rd post-classify
+    // window -> one-way downgrade to responsive handling (ALL modes).
     if (!flipped_ &&
         (flip_trigger(o1, n, p_) || flip_trigger(o2, n, p_)))
       flipped_ = true;
     if (flipped_) return responsive_decision(n, o1, o2);
 
     // (e) late-switch guard: a single opp war -> immediate single-round war
-    // response (3/rd regime, never absorbed), then re-evaluate next round.
+    // response (3/rd regime, never absorbed). The schedule STAYS ARMED: the
+    // escalation clock keeps running and re-evaluates next round (it never
+    // downgrades on a late switch) — identical across all three modes.
     if (o1[n - 1] != 0 || o2[n - 1] != 0) return 1;
 
-    // (a) partner-adjusted farming: r = r_star + partner_adj*(wr - 0.3),
-    // clamped to [0.2, 0.55]; partner warrate = the average of both
-    // opponents' all-history war-rates (flagged reading 5).
+    // (a) the mode-specific war-rate for this round (v2b escalation).
+    // mode 2 COMMIT: pure war from classify_end+1 (immediate commit).
+    if (p_.escalate_mode == 2) return 1;
+
+    // mode 1 STAGED: war-rate by rounds-since-classify
+    // k = n - (classify_end + 1) (flag 11; k = 0 on the classify call).
+    if (p_.escalate_mode == 1) {
+      const int k = n - (p_.classify_end + 1);
+      if (k >= p_.escalate_commit_rd) return 1;  // commit band: pure war
+      if (k >= p_.escalate_stage2_rd)
+        return draw_w_p(p_.stage2_rate);  // stage2 band: fixed rate
+      // stage1 band: partner_adj formula (base stage1_rate, clamp [0.2,0.55])
+      const double wr1 =
+          (n > 0) ? static_cast<double>(war_count_all(o1)) / n : 0.0;
+      const double wr2 =
+          (n > 0) ? static_cast<double>(war_count_all(o2)) / n : 0.0;
+      const double wr = 0.5 * (wr1 + wr2);
+      double r = p_.stage1_rate + p_.partner_adj * (wr - 0.3);
+      if (r < 0.2) r = 0.2;
+      if (r > 0.55) r = 0.55;
+      return draw_w_p(r);
+    }
+
+    // mode 0 FIXED: the ORIGINAL partner-adjusted farming — r = r_star +
+    // partner_adj*(wr - 0.3), clamped [0.2,0.55]; partner warrate = the
+    // average of both opponents' all-history war-rates (flagged reading 5).
     const double wr1 =
         (n > 0) ? static_cast<double>(war_count_all(o1)) / n : 0.0;
     const double wr2 =
@@ -641,12 +699,32 @@ AgentFactory make_CandE_Hybrid(const CandEParams& p) {
   return [p] { return std::make_unique<CandEHybrid>(p); };
 }
 
-// Registry-facing factory: default-parameter instance.
+// Registry-facing factory: default-parameter instance (mode 1 STAGED).
 AgentFactory make_agent_CandE_Hybrid() {
   return make_CandE_Hybrid();
 }
 
-// Link-time registration (name is the literal dispatch token).
+// v2b named variant: mode 0 FIXED (the original fixed clamp-rate farming).
+AgentFactory make_CandE_fixed() {
+  CandEParams p;
+  p.escalate_mode = 0;
+  return make_CandE_Hybrid(p);
+}
+
+// v2b named variant: mode 2 COMMIT (pure war from classify_end+1).
+AgentFactory make_CandE_commit() {
+  CandEParams p;
+  p.escalate_mode = 2;
+  return make_CandE_Hybrid(p);
+}
+
+// Registry-facing factories for the v2b named variants.
+AgentFactory make_agent_CandE_fixed() { return make_CandE_fixed(); }
+AgentFactory make_agent_CandE_commit() { return make_CandE_commit(); }
+
+// Link-time registration (names are the literal dispatch tokens).
 REGISTER_AGENT(CandE_Hybrid);
+REGISTER_AGENT(CandE_fixed);
+REGISTER_AGENT(CandE_commit);
 
 }  // namespace mas_sim

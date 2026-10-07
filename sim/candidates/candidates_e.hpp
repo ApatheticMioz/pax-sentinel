@@ -50,6 +50,26 @@ namespace mas_sim {
 //     pre-probe phase, >=feud_min_streak consecutive both-opp war rounds
 //     that echo my own recent wars trigger `feud_break_len` unilateral
 //     peace rounds (suppressing R1/R2/R2-amnesty).
+//   * escalate_mode / escalate_stage2_rd / escalate_commit_rd /
+//     stage1_rate / stage2_rate: the exploit-phase WAR-RATE ESCALATION
+//     schedule (slice C1c-v2b; replaces the fixed clamp-rate farming in
+//     mode 1/2 — see the .cpp R5 for the exact band semantics):
+//     mode 0 FIXED  — the original partner-adjusted clamp [0.2,0.55]
+//                      rate for the whole exploit phase;
+//     mode 1 STAGED — by rounds-since-classify (k = n - classify_end - 1):
+//                      k <  escalate_stage2_rd -> stage1_rate (the
+//                      partner_adj formula applies in this band only,
+//                      clamped to [0.2, 0.55] as before);
+//                      k in [escalate_stage2_rd, escalate_commit_rd)
+//                           -> stage2_rate;
+//                      k >= escalate_commit_rd -> 1.0 (pure commit war);
+//     mode 2 COMMIT — pure war from classify_end+1 onward (immediate
+//                      commit).
+//     In ALL modes the flip-guard (>=2 opp wars within any flip_win-rd
+//     post-classify window -> one-way downgrade to responsive) and the
+//     late-switch single-response rule (a single opp war -> one war
+//     response, then re-eval: the schedule stays ARMED, it never
+//     downgrades) apply unchanged.
 struct CandEParams {
   int probe_rd = 4;            // the single conditional probe war round
   int burst_start = 11;        // first of `burst_len` burst rounds
@@ -70,10 +90,22 @@ struct CandEParams {
   int flip_win = 5;             // flip detector: 2 wars within any flip_win-rd window
   int feud_break_len = 2;      // R1.5: unilateral peace rounds of the feud-break
   int feud_min_streak = 3;     // R1.5: min consecutive both-opp war-streak to fire
+  // --- v2b exploit-phase escalation schedule (mode 0 keeps the fixed clamp)
+  int escalate_mode = 1;         // 0 FIXED / 1 STAGED (default) / 2 COMMIT
+  int escalate_stage2_rd = 25;   // STAGED: rounds-since-classify for the stage2 band
+  int escalate_commit_rd = 40;   // STAGED: rounds-since-classify for the commit band
+  double stage1_rate = 0.40;     // STAGED band 1 base (partner_adj applies here only)
+  double stage2_rate = 0.70;     // STAGED band 2 fixed rate (no partner adj)
 };
 
 // Parameterized factory (the public API for campaign-level E use).
 AgentFactory make_CandE_Hybrid(const CandEParams& p = CandEParams());
+
+// v2b named variants (registered alongside CandE_Hybrid): CandE_fixed =
+// mode 0 (the original fixed clamp-rate farming); CandE_commit = mode 2
+// (pure war from classify_end+1). CandE_Hybrid keeps the mode 1 default.
+AgentFactory make_CandE_fixed();
+AgentFactory make_CandE_commit();
 
 }  // namespace mas_sim
 

@@ -85,6 +85,10 @@ std::vector<int> wars_at(int n, const std::vector<int>& idx) {
 
 // A deterministic base: no window draws (burst/trickle 0), no partner adj,
 // r*=0. Tests override leniency_eps / r_star / partner_adj as needed.
+// NOTE (v2b): escalate_mode is pinned to 0 (FIXED) so the PRE-v2b unit
+// checks (E1..E21) remain regression-pure — they were written against the
+// original fixed clamp-rate farming, which is exactly mode 0. The v2b
+// escalation tests explicitly set escalate_mode 1/2.
 CandEParams base_det() {
   CandEParams p;
   p.burst_rate = 0.0;
@@ -92,6 +96,7 @@ CandEParams base_det() {
   p.jitter = 0;
   p.partner_adj = 0.0;
   p.r_star = 0.0;
+  p.escalate_mode = 0;
   return p;
 }
 
@@ -103,6 +108,180 @@ bool finite_scores(const std::vector<double>& s) {
 }
 
 }  // namespace
+
+// =============================================================================
+// (v2b) CandE escalation-schedule scripted-history unit tests.
+//
+// These are ADDITIONAL checks on top of the 37 prior checks (E1..E21 + smoke +
+// sanity). They cover dispatch tests (i) staged bands, (ii) mode 2 immediate
+// commit, and (v) flip-guard during the commit band. Tests (iii) mode-0
+// regression, (iv) mode-1 Nice, (vi) Nasty, (vii) Tolerant, and (viii) TFT
+// live in test_sanity() (the 5-run measured versions).
+// =============================================================================
+void test_candE_escalation() {
+  std::printf("--- CandE escalation-schedule unit tests (v2b) ---\n");
+
+  // E22 (i) STAGED BANDS (seeded statistical): mode 1 with stage1_rate=0.40,
+  // stage2_rate=0.70, stage2_rd=25, commit_rd=40. Drive a deterministic
+  // silent (all-peace) pair across the whole exploit phase; the per-band
+  // war-rate must track 0.40 / 0.70 / 1.0 (the commit band is exactly 1.0 —
+  // a pure war with no draw).
+  {
+    CandEParams p;
+    p.escalate_mode = 1;
+    p.stage1_rate = 0.40;
+    p.stage2_rate = 0.70;
+    p.escalate_stage2_rd = 25;
+    p.escalate_commit_rd = 40;
+    int b1 = 0, b2 = 0, b3 = 0, n1 = 0, n2 = 0, n3 = 0;
+    const int NSEED = 200;
+    for (int seed = 0; seed < NSEED; ++seed) {
+      auto a = make_CandE_Hybrid(p)();
+      mas_sim::fast_rng().reseed(1000000 + seed);
+      for (int n = 15; n < 90; ++n) {
+        std::vector<int> my(n, 0), o1(n, 0), o2(n, 0);  // silent pair
+        const int r = a->selectAction(n, my, o1, o2);
+        const int k = n - 15;  // rounds-since-classify (classify at n=15)
+        if (k < 25) { ++n1; b1 += r; }
+        else if (k < 40) { ++n2; b2 += r; }
+        else { ++n3; b3 += r; }
+      }
+    }
+    const double r1 = static_cast<double>(b1) / n1;
+    const double r2 = static_cast<double>(b2) / n2;
+    const double r3 = static_cast<double>(b3) / n3;
+    std::printf("      (staged bands: stage1=%.4f stage2=%.4f commit=%.4f "
+                "over %d/%d/%d rds)\n", r1, r2, r3, n1, n2, n3);
+    report(r1 >= 0.35 && r1 <= 0.45 && r2 >= 0.65 && r2 <= 0.75 &&
+               r3 == 1.0,
+           "E22: STAGED bands follow 0.40/0.70/1.0 (commit band is exactly "
+           "1.0; stage bands within statistical tolerance)");
+  }
+
+  // E23 (i) STAGED BAND BOUNDARIES (degenerate rates): mode 1 with
+  // stage2_rate=0.0 and commit from k>=10, stage2 band [5,10). A silent pair
+  // gives a DETERMINISTIC war->peace->war pattern across the band switch:
+  //   * commit band (k>=10)      -> 1.0, deterministic WAR;
+  //   * stage2 band (5<=k<10)    -> draw_w_p(stage2_rate=0.0) = 0 (peace,
+  //     no draw). partner_adj=1.0 is set deliberately: if the stage2 band
+  //     (wrongly) applied the partner-adjustment formula it would produce a
+  //     non-zero (clamped) rate, but the observed 0.0 proves stage2 uses its
+  //     OWN fixed rate and IGNORES partner_adj;
+  //   * stage1 band (k<5)       -> statistical (the 0.0 base clamps to 0.2),
+  //     skipped in the assertion.
+  // The k=10 commit->stage2 transition (n=25: war) to n=24 (peace) is the
+  // clean deterministic boundary proving the band switch.
+  {
+    CandEParams p = base_det();  // partner_adj 0 -> we set it below
+    p.escalate_mode = 1;
+    p.stage1_rate = 0.4;
+    p.partner_adj = 1.0;  // would corrupt a stage2 that (wrongly) used it
+    p.stage2_rate = 0.0;  // degenerate: stage2 band = deterministic peace
+    p.escalate_stage2_rd = 5;
+    p.escalate_commit_rd = 10;
+    auto a = make_CandE_Hybrid(p)();
+    bool ok = true;
+    for (int n = 15; n <= 26; ++n) {
+      std::vector<int> my(n, 0), o1(n, 0), o2(n, 0);
+      const int k = n - 15;
+      if (k < 5) continue;  // stage1: statistical (0.4 clamped) — skip
+      const int expect = (k < 10) ? 0 : 1;  // stage2 peace, commit war
+      if (a->selectAction(n, my, o1, o2) != expect) ok = false;
+    }
+    report(ok, "E23: STAGED band boundary — deterministic peace in the "
+               "stage2 band [5,10), war in the commit band k>=10; stage2 "
+               "ignores partner_adj (0.0 fixed, not a clamped adj rate)");
+  }
+
+  // E24 (ii) MODE 2 COMMIT: pure war from classify_end+1 (the first post-
+  // classify call). The window round just before classify (n=14) is peace
+  // (deterministic script); classify at n=15 is already commit.
+  {
+    CandEParams p = base_det();
+    p.escalate_mode = 2;
+    auto a = make_CandE_Hybrid(p)();
+    const std::vector<int> o14 = rep(14, 0);
+    const int r14 = call(a.get(), 14, rep(14, 0), o14, o14);  // window: 0
+    const int r15 = call(a.get(), 15, rep(15, 0), rep(15, 0), rep(15, 0));
+    const int r16 = call(a.get(), 16, rep(16, 0), rep(16, 0), rep(16, 0));
+    report(r14 == 0 && r15 == 1 && r16 == 1,
+           "E24: mode 2 COMMIT — peace in the window (n=14), war from the "
+           "first post-classify call (n=15)");
+  }
+
+  // E25 (v) FLIP-GUARD DURING THE COMMIT BAND: mode 1 with commit_rd=2
+  // (commit band from k>=2, i.e. n>=17). Against a pair that FLIPS (two opp
+  // wars within the flip_win=5 post-classify window), the one-way downgrade
+  // to responsive must take effect even once the commit band is reached: at
+  // a later both-peace round a FLIPPED pair yields a RESPONSIVE peace (0),
+  // while a NON-flipped commit-band pair is a pure COMMIT war (1). This is
+  // the dispatch "flip during commit band -> responsive downgrade works".
+  {
+    CandEParams p;
+    p.escalate_mode = 1;
+    p.stage1_rate = 0.0;   // degenerate: no draw
+    p.stage2_rate = 0.0;
+    p.escalate_stage2_rd = 2;   // stage2 band empty
+    p.escalate_commit_rd = 2;   // commit band from k>=2 (n>=17)
+    p.flip_win = 5;
+    // Agent A: o1 wars at rds 15 and 16 (two post-classify wars within the
+    // flip window) -> flips at n=17; n=18 both-peace -> responsive (0).
+    auto a = make_CandE_Hybrid(p)();
+    call(a.get(), 15, rep(15, 0), rep(15, 0), rep(15, 0));  // classify (silent)
+    const std::vector<int> o1a16 = wars_at(16, {15});       // o1 rd15 war
+    call(a.get(), 16, rep(16, 0), o1a16, rep(16, 0));       // 1 war (no flip yet)
+    const std::vector<int> o1a17 = wars_at(17, {15, 16});   // o1 rd16 war
+    call(a.get(), 17, rep(17, 0), o1a17, rep(17, 0));        // 2nd war -> flip
+    const std::vector<int> o1a18 = wars_at(18, {15, 16});   // rds 17 peace
+    const int r18a = call(a.get(), 18, rep(18, 0), o1a18, rep(18, 0));
+    // Agent B (control): same params, silent pair, commit band, no flip.
+    auto b = make_CandE_Hybrid(p)();
+    call(b.get(), 15, rep(15, 0), rep(15, 0), rep(15, 0));
+    call(b.get(), 16, rep(16, 0), rep(16, 0), rep(16, 0));
+    call(b.get(), 17, rep(17, 0), rep(17, 0), rep(17, 0));
+    const int r18b =
+        call(b.get(), 18, rep(18, 0), rep(18, 0), rep(18, 0));  // commit -> 1
+    report(r18a == 0 && r18b == 1,
+           "E25: flip-guard in the commit band — a flip downgrades to "
+           "responsive (both-peace->0), a non-flipped commit band wars (1)");
+  }
+
+  // E26 REGISTRATION + distinctness: the three named variants
+  // (CandE_Hybrid = mode 1 default, CandE_fixed = mode 0, CandE_commit =
+  // mode 2) are all registered, and they are behaviorally distinct: on the
+  // SAME silent both-peace commit-band round (n=55, k=40, past commit_rd=40)
+  // a MODE-2 (commit) agent wars deterministically (1.0) while a MODE-0
+  // (fixed) agent does NOT — the mode-0 farm rate (r_star=1.0 clamped to
+  // 0.55) PEAces at a seeded u in [0.55,1), proving mode 0 keeps the clamped
+  // farming instead of committing.
+  {
+    const auto reg = &Registry::instance();
+    const bool all_reg = reg->has("CandE_Hybrid") && reg->has("CandE_fixed") &&
+                         reg->has("CandE_commit");
+    const int seed = find_seed(910000, 200000, 0.55, 1.0);
+    int mode0_peace = -1, mode2_war = -1;
+    if (seed > 0) {
+      CandEParams p0;
+      p0.escalate_mode = 0;
+      p0.r_star = 1.0;  // unclamped 1.0 -> clamps to 0.55 (mode 0 never 1.0)
+      auto a0 = make_CandE_Hybrid(p0)();
+      mas_sim::fast_rng().reseed(seed);
+      mode0_peace =
+          call(a0.get(), 55, rep(55, 0), rep(55, 0), rep(55, 0)) == 0 ? 1 : 0;
+
+      CandEParams p2;
+      p2.escalate_mode = 2;
+      auto a2 = make_CandE_Hybrid(p2)();
+      mas_sim::fast_rng().reseed(seed);
+      mode2_war =
+          call(a2.get(), 55, rep(55, 0), rep(55, 0), rep(55, 0)) == 1 ? 1 : 0;
+    }
+    report(all_reg && mode0_peace == 1 && mode2_war == 1,
+           "E26: all three named variants registered (Hybrid/Fixed/Commit); "
+           "on the same silent commit-band round mode-0 (clamped 0.55) "
+           "peaces at u in [0.55,1) while mode-2 commits (1.0) — distinct");
+  }
+}
 
 // =============================================================================
 // (i) CandE scripted-history unit tests.
@@ -763,20 +942,21 @@ void test_smoke_tournament() {
 void test_sanity() {
   std::printf("--- sanity checks ---\n");
 
-  // (a) CandE vs {Nice, Nice} >= 5.5/rd.
-  //     LITERAL 2-WAY bound (CandE + Nice + Nice, distinct — the C-test
-  //     convention) is FLAGGED unsatisfiable (C1a/C1b precedent): the bulk
-  //     of the match is the exploit-farm phase, which the partner-adjusted
+  // (a) MODE 0 FIXED REGRESSION: CandE_fixed (the original fixed clamp-rate
+  //     farming) vs {Nice, Nice}. The 2-WAY bound (CandE + Nice + Nice,
+  //     distinct — the C-test convention) is the pre-v2b value: the bulk of
+  //     the match is the exploit-farm phase, which the partner-adjusted
   //     rate CLAMPS to [0.2, 0.55]; at the 0.55 ceiling the farm phase
   //     yields 0.55*6 + 0.45*4 = 4.97/rd, and the short n>=90 endgame
   //     (6/rd) is divided by a horizon that grows with it, so the 2-way
-  //     total caps near ~4.8/rd (the window is ~4.45/rd). The true 2-way
-  //     value is measured below and asserted in its band. The 3-READING
-  //     "vs {Nice,Nice}" (CandE + 3 Nice, a 4-agent distinct tournament —
-  //     the only reading where all three slots are opponent streams) gives
-  //     ~14.5/rd, which satisfies 5.5 trivially; we report both.
+  //     total caps near ~4.8/rd. The true 2-way value is measured below and
+  //     asserted in its pre-v2b band [4.5, 5.1]/rd. The 3-READING "vs
+  //     {Nice,Nice}" (CandE + 3 Nice, a 4-agent distinct tournament) gives
+  //     ~14.5/rd, satisfying 5.5 trivially; we report both.
   {
-    const auto e = make_CandE_Hybrid();
+    CandEParams pm0;
+    pm0.escalate_mode = 0;  // the original fixed clamp-rate farming
+    const auto e = make_CandE_Hybrid(pm0);
     const auto nice = Registry::instance().get("NiceAgent");
     double avg2 = 0.0;
     for (int r = 0; r < 5; ++r) {
@@ -799,14 +979,40 @@ void test_sanity() {
                              RngKind::kSfc64)[0];
     }
     avg3 /= 5;
-    std::printf("      CandE vs {Nice, Nice} 2-way = %.4f/rd "
-                "(literal '>= 5.5' FLAGGED; 3-way = %.4f/rd)\n",
-                avg2, avg3);
+    std::printf("      CandE_fixed (mode 0) vs {Nice, Nice} 2-way = %.4f/rd "
+                "(3-way = %.4f/rd)\n", avg2, avg3);
     report(std::isfinite(avg2) && avg2 >= 4.5 && avg2 <= 5.1 &&
                std::isfinite(avg3) && avg3 >= 5.5,
-           "CandE vs {Nice, Nice}: 2-way true band ~4.7 (exploit clamped "
-           "[0.2,0.55] caps the farm phase; literal '>=5.5' 2-way FLAGGED), "
-           "3-way reading >= 5.5");
+           "CandE_fixed (mode 0) vs {Nice, Nice}: 2-way regression band "
+           "[4.5,5.1]/rd unchanged (fixed clamp [0.2,0.55] caps the farm "
+           "phase), 3-way >= 5.5");
+  }
+
+  // (a1) MODE 1 STAGED (the new default, CandE_Hybrid): vs {Nice, Nice}.
+  //      The escalation schedule lifts the exploit-phase war-rate from the
+  //      0.55-clamp to the 0.70 stage2 band and then to a 1.0 commit band,
+  //      so the 2-way total must EXCEED the pre-v2b 4.7 clamp ceiling and
+  //      land >= 5.0/rd (measured ~5.33/rd, vs the mode-0 4.79/rd — the
+  //      confirmed-silent escalation the design brief called for).
+  {
+    const auto e = make_CandE_Hybrid();  // default = mode 1 STAGED
+    const auto nice = Registry::instance().get("NiceAgent");
+    double avg2 = 0.0;
+    for (int r = 0; r < 5; ++r) {
+      std::vector<mas_sim::AgentFactory> f(3);
+      f[0] = e;
+      f[1] = nice;
+      f[2] = nice;
+      avg2 += run_tournament(f, 3, 82100 + r, TournamentMode::kDistinct,
+                             RngKind::kSfc64)[0];
+    }
+    avg2 /= 5;
+    std::printf("      CandE_Hybrid (mode 1) vs {Nice, Nice} 2-way = %.4f/rd\n",
+                avg2);
+    report(std::isfinite(avg2) && avg2 >= 5.0,
+           "CandE_Hybrid (mode 1 STAGED) vs {Nice, Nice} 2-way >= 5.0/rd "
+           "(escalation lifts the farm phase past the mode-0 4.79 clamp; "
+           "measured ~5.33/rd)");
   }
 
   // (b) CandE vs {TFT_any, TFT_any} — THE C-arm killer metric (>= 3.5/rd
@@ -891,15 +1097,18 @@ void test_sanity() {
            "play); literal '>= 3.5/rd' FLAGGED unsatisfiable");
   }
 
-  // (c) CandE vs {Nasty, Nasty} >= -0.3/rd.
+  // (c) CandE (mode 1 STAGED default) vs {Nasty, Nasty} >= -0.3/rd.
   //     Nasty wars forever -> both hopeless at classify -> permanent war
-  //     (0/rd) from n=15. The probe window vs two war-forever opps: the
-  //     CONDITIONAL probe is SKIPPED (an opp warred pre-probe) and the burst
-  //     ABORTS (retaliation observed); only the trickle rounds are window
-  //     wars (0/rd) among mostly-peace (-1/rd) rounds. Over ~100 rds the
-  //     0/rd permanent-war tail dominates -> ~-0.1 to -0.2/rd, above -0.3.
+  //     (0/rd) from n=15 regardless of the escalation mode. The probe
+  //     window vs two war-forever opps: the CONDITIONAL probe is SKIPPED
+  //     (an opp warred pre-probe) and the burst ABORTS (retaliation
+  //     observed); only the trickle rounds are window wars (0/rd) among
+  //     mostly-peace (-1/rd) rounds. Over ~100 rds the 0/rd permanent-war
+  //     tail dominates -> ~-0.1 to -0.2/rd, above -0.3 (the escalation
+  //     schedule never engages because the pair classifies hopeless, not
+  //     exploitable-silent).
   {
-    const auto e = make_CandE_Hybrid();
+    const auto e = make_CandE_Hybrid();  // mode 1 STAGED (default)
     const auto nasty = Registry::instance().get("NastyAgent");
     double avg = 0.0;
     for (int r = 0; r < 5; ++r) {
@@ -944,8 +1153,10 @@ void test_sanity() {
 }
 
 int main() {
-  std::printf("=== candidates_e_test (slice C1c: CandE_Hybrid) ===\n");
+  std::printf("=== candidates_e_test (slice C1c-v2b: CandE_Hybrid + "
+              "escalation) ===\n");
   test_candE_unit();
+  test_candE_escalation();
   test_smoke_tournament();
   test_sanity();
 
