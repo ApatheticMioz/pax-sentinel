@@ -114,6 +114,29 @@ threshold T (War iff n ≥ T) and q-hazard (War w.p. min(1, c/(111−n))); ramp-
 (no contrition inside the window); no probes ever; own PRNG. Grid arbitrates ramp shape and
 onset.
 
+### 5.y Ramp grid on prior (4,000 CRN runs/arm, seed 731842) — first results
+
+| Variant | P(#1) | 95% CI | mean score | CRN-paired vs T104 |
+|---|---|---|---|---|
+| **CandF_T104** | **0.119** | [0.109, 0.129] | 12,914 | — |
+| CandF_T106 | 0.110 | [0.100, 0.120] | 12,913 | −0.9 [−2.1, +0.3] (tie) |
+| CandF_T108 | 0.099 | [0.090, 0.109] | 12,910 | −4.1 |
+| CandF_mode0 (no ramp) | 0.085 | [0.077, 0.094] | 12,906 | −7.3 |
+| **CandF_mode2 (q-hazard c=3)** | **0.003** | [0.002, 0.006] | 12,831 | **−82.2** |
+
+Findings:
+1. **R2 override closes the archetype gap**: mode0 sits exactly on the CTFT3P/TFT_any
+   crown archetype (12,906; P(#1) 0.085 ∈ archetype's [0.083, 0.088]) — up from A's 0.0008.
+2. **The threshold ramp is a real, clean edge**: T104 > archetype by +35% relative P(#1)
+   (0.119 vs 0.088), CRN-paired diffs resolve ±2 points on 12,900 means.
+3. **Ramp SHAPE dominates ramp onset**: the q-hazard curve (probabilistic wars from n=90,
+   c=3.0) loses −82 to T104 — it pays full retaliation-lock costs while long horizons
+   remain, forfeiting the threshold ramp's one protection (commit only when ≤6 rounds
+   remain, so retaliation cannot land). Hard-late ≫ soft-early.
+4. Returns diminish toward later onsets (T108→T106 +3.2, T106→T104 +0.9); bracket
+   extension T98/T100/T102 probes the lower floor (zoo EndgameGTFT at rank 42 warns much
+   earlier onsets collapse).
+
 - **A — GTFT-3P baseline** (control): Peace; War iff either opp warred last round; 1-shot
   forgiveness. Solid vs responsive majority; misses saint exploitation; disguised-saint trap
   ≈ −240/match.
