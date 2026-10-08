@@ -36,11 +36,19 @@ rivals' worst deficits to it: −273 to −400).
 
 All mechanics were verified against `ThreeWayPeaceWar.cpp` (the authoritative source):
 payoff tensor `payoff[A][B][C]` (my action × #opp wars: Peace 4/1/−1, War 6/3/0); horizon
-`rounds = 90 + round(20·rand()/RAND_MAX)` (uniform 90–110, **unknown to the agent**);
-score `totalScore += matchResults[i]/rounds` per match; fresh agent construction per match
-(no cross-match state, no opponent identity); non-const history references; shared
-`srand(time(NULL))`. The simulation engine (`sim/engine.*`) reproduces this **bit-faithfully**
+`rounds = 90 + round(20·(float)rand()/RAND_MAX)` (uniform 90–110, **unknown to the agent**);
+score `totalScore[i] += matchResults[i]/rounds` per match; fresh agent construction per match
+(no cross-match state, no opponent identity). The simulation engine (`sim/engine.*`) reproduces this **bit-faithfully**
 (fidelity gate 12/12 vs the original harness, MSVCRT rand rebound at link time).
+
+**Professor's revision (v2, current)**: `selectAction` now takes `const std::vector<int>&`
+(closing the history-tampering vulnerability), plus a `safeAction` wrapper (invalid returns /
+thrown exceptions → Peace). A precise diff against the archived original (`git 4acd5d7`)
+shows **no change** to the payoff tensor, horizon formula, self-inclusive triple enumeration,
+float score accumulation, or `rand()` consumption order — so the engine fidelity gate and the
+entire campaign carry over. Our agent is read-only, returns only 0/1, and never throws, so
+v2 changes nothing about its behavior; the port was re-based onto the const signature and
+re-verified (see §7).
 
 ## 3. The ship agent — rule chain and grounding
 
@@ -104,18 +112,22 @@ the opponents' action streams.
 2. Rename class `RampSentinelAgent` to `<student-id><Name>Agent` (valid identifier form of
    the convention in `instructions.txt`) — **3 occurrences** (comment, class declaration,
    `makeAgent` case 6).
-3. Compile: `g++ -O2 -std=c++17 ThreeWayPeaceWar.cpp` — verified on g++ 13.3 (WSL) and
-   14.2 (MSYS2 ucrt64). (On this dev machine only, `-static-libgcc -static-libstdc++` is
-   additionally required due to a broken local MSYS2 install — missing
-   `libgcc_s.dll.a`; repair: `pacman -S mingw-w64-ucrt-x86_64-gcc`. The submitted source
-   needs no special flags on a healthy toolchain.)
-4. Demo tournament runs as-is (our agent finishes top-2 of 7, order sane).
+3. Compile: `g++ -O2 -std=c++17 ThreeWayPeaceWar.cpp` — re-verified on the professor's v2
+   base (const signatures) on g++ (WSL) and 14.2 (MSYS2 ucrt64). (On this dev machine only,
+   `-static-libgcc -static-libstdc++` is additionally required due to a broken local MSYS2
+   install — missing `libgcc_s.dll.a`; repair: `pacman -S mingw-w64-ucrt-x86_64-gcc`. The
+   submitted source needs no special flags on a healthy toolchain. Note: v2 includes
+   `<cxxabi.h>`, a libstdc++ header — the harness is g++-targeted by the professor's own
+   choice.)
+4. Demo tournament runs as-is (our agent in the top-3 band of 7; the 35-match demo is
+   small-sample — draws observed: #1 and #3 across seeds. The campaign evidence, not the
+   demo, is authoritative).
 
 ## 8. Risk register (real-grader unknowns)
 
 | Risk | Exposure | Mitigation / evidence |
 |---|---|---|
-| Grader's base-class signature (const vs non-const refs) | compile error if the grader swaps their own harness base class | we submit the whole file, and the file's own base is non-const — consistent by construction; instructions' const mention contradicts the provided harness; harness treated as ground truth |
+| ~~Grader's base-class signature (const vs non-const refs)~~ **RESOLVED by professor's v2** | v2 settles it: **const** | port re-based onto the const signature (override compiles); agent is read-only either way, zero behavior change |
 | Self-match-inclusive vs distinct triples | ranking mechanics differ slightly | freeze validates **both** enumeration modes; agent has no self-recognition logic to misfire |
 | Pool size "~100" | mean-total scale changes | validated across 51–121 opponents (small-pool … elite-heavy) |
 | Rerun count | single-run luck | deterministic agent + CRN-stable edge; ranking variance quantified across 4000-run samples |

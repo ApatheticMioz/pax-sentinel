@@ -288,6 +288,35 @@ Readings:
 5. **Ship decision re-confirmed under every freeze gate.** Port: RampSentinelAgent in
    `ThreeWayPeaceWar.cpp` (commit 22418a3).
 
+### 5.ze Professor harness revision v2 — diff analysis; campaign carries over
+
+The professor re-issued `ThreeWayPeaceWar.cpp` to remove a vulnerability. Precise diff
+against the archived original (git 4acd5d7, `.scratch/original_harness.cpp`):
+
+1. **`selectAction` signatures → `const std::vector<int>&`** (base + all 6 samples): closes
+   the history-tampering vector (agents could previously mutate *opponents'* history
+   buffers through the non-const refs). Mechanically required a port re-base — the old
+   override would no longer compile. Zero strategic impact: our agent (and every zoo
+   archetype) is strictly read-only; side-effect-free reads behave identically under
+   const. Note: the const fix also *removes an entire class of cheater-rivals* (history
+   mutators) we never modeled — the elite/exploit-heavy families already bound this case.
+2. **`safeAction` wrapper**: out-of-range returns and thrown exceptions → Peace. Adds no
+   `rand()` calls, so the shared-RNG consumption order is unchanged. Our agent returns
+   only 0/1 and cannot throw → no effect. Pool-level: crash-prone classmates now default
+   to Peace instead of killing the tournament — a junk-agent nuance covered by the
+   saint/nice-heavy stress families.
+3. **Cosmetic only**: whitespace/tab normalization, comment reflow, and the insertion
+   sort rewritten (`key=i` → init + loop from 1) — semantically identical stable sort.
+
+**Unchanged (verified in the diff): payoff tensor, horizon formula
+`90 + round(20*(float)rand()/RAND_MAX)`, self-inclusive i≤j≤k triple enumeration, float
+score accumulation, `srand(time(NULL))`, per-match fresh construction.** Therefore the
+engine fidelity gate, the entire ~300k-run campaign, and the freeze validation
+(§5.zd) remain valid as-is — no rerun required. The port was re-based onto the const
+signature (merged file = professor paste + exactly 3 additions: the class, numAgents 7,
+case 6; verified by diff against the paste) and re-verified on both toolchains (WSL g++
+and MSYS2 ucrt64 g++ 14.2 compile clean; demo sane, top-3 band of 7 across seed draws).
+
 ## 6. Methodology (binding)
 
 Common random numbers for every A/B; ≥10⁵ tournaments overnight on 16 cores; stratified pool
