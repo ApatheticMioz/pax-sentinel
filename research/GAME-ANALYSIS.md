@@ -204,6 +204,29 @@ to F is −400 (elite-heavy). Mode 3 retained in the registry as a falsified arm
 + mode-1 T104 ramp. If it beats F_T104 on both llm-pattern and prior, the backbone choice
 reopens; if it wins only llm-pattern, the prior-primary trade stands.
 
+### 5.zc CandG verdict — trade settled; adversarial loop CLOSED
+
+CandG_TolRamp (4,000 runs/arm, CRN seeds matched to hold-out):
+
+| Family | CandG | F_T104 | CandA |
+|---|---|---|---|
+| prior | P(#1)=0.000, rank 40, 12,589 | **0.119, 12,914** | 0.001 |
+| llm-pattern | rank 28, 14,985 | rank 49, 14,422 | rank 38, 14,501 |
+| nice-heavy | rank 11, 16,101 | rank 32, 15,999 | rank 24, 16,027 |
+
+CandG wins llm-pattern (+563 mean over F — the coast backbone is that pool's king) but
+loses the prior catastrophically (−325, P(#1)=0): TolerantW5's slow windowed response
+(3-of-5 wars to react) bleeds against the prior's fast-retaliation mass. Per the
+pre-declared rule (prior-primary), the trade settles for F. Note even CandG never takes
+the llm-pattern crown — the pure TolerantW5 mass does; cooperative-heavy crowns require
+*being* the crown archetype, a lower-EV-on-prior design.
+
+**Adversarial loop closed.** Adversary classes tested against the incumbent, all failing
+to displace CandF_T104 on the primary (prior) objective: its own parameter neighborhood
+(T98–T108, modes 0/2/3 — grid), policy families A/B/C/E, and the strongest cross-archetype
+hybrid (CandG). Freeze validation (fresh seeds, fidelity RNG, both enumeration modes) is
+the next gate.
+
 - **A — GTFT-3P baseline** (control): Peace; War iff either opp warred last round; 1-shot
   forgiveness. Solid vs responsive majority; misses saint exploitation; disguised-saint trap
   ≈ −240/match.
