@@ -96,13 +96,52 @@ class ThreeWayPeaceWar {
         }
     };
 
+    // RENAME: <student-id><Name>Agent before submission.
+    //
+    // Design anchors (sim/): the CTFT contrition backbone (Wu & Axelrod,
+    // "How to cope with noise in the iterated prisoner's dilemma",
+    // Journal of Conflict Resolution 39(1):183-189, 1995); the endgame
+    // unraveling ramp (a committed endgame war at a fixed threshold,
+    // because any forgiving agent can be undercut in the last few rounds);
+    // and the 28k CRN-run screening that froze this configuration.
+    //
+    // Decision path (evaluated top-down every round; first match decides),
+    // a faithful port of the frozen CandF_T104 (ramp_mode = 1, ramp_T = 104;
+    // deterministic — no randomness, no member state, O(1) per round):
+    //   R0  n == 0                      -> peace (open peace).
+    //   R2  both opponents warred last  -> war (unconditional override;
+    //       fires before the contrite/forgiveness path and the ramp).
+    //   R3  n >= 90 (window) && n >= 104-> war (the committed ramp; once
+    //       in play the CTFT contrite override can no longer fire inside
+    //       the window, so the ramp is never suppressed).
+    //   R1  (backbone) my last was war while BOTH opponents peaced -> peace
+    //       (the contrite response to an unprovoked war); else mirror war
+    //       if either opponent warred last round (TFT_any); else peace.
+    class RampSentinelAgent : public Agent {
+        static constexpr int kRampWindowStart = 90;  // the ramp window opens at the minimum horizon
+        static constexpr int kRampThreshold = 104;   // the frozen threshold: committed war from round 104
+
+    public:
+        int selectAction(int n, std::vector<int>& myHistory, std::vector<int>& oppHistory1, std::vector<int>& oppHistory2) override {
+            if (n == 0)
+                return 0; // R0: open peace.
+            if (oppHistory1[n - 1] == 1 && oppHistory2[n - 1] == 1)
+                return 1; // R2: unconditional both-opponents-war override.
+            if (n >= kRampWindowStart && n >= kRampThreshold)
+                return 1; // R3: committed endgame ramp (the 104 threshold binds).
+            if (myHistory[n - 1] == 1 && oppHistory1[n - 1] == 0 && oppHistory2[n - 1] == 0)
+                return 0; // R1: contrite (unprovoked self-war last round).
+            return (oppHistory1[n - 1] == 1 || oppHistory2[n - 1] == 1) ? 1 : 0; // R1: TFT_any mirror.
+        }
+    };
+
     std::vector<int> extendIntArray(std::vector<int>& arr, int next) {
         arr.push_back(next);
         return arr;
     }
 
 public:
-    static constexpr int numAgents = 6;
+    static constexpr int numAgents = 7; // was 6; +1 for RampSentinelAgent (kept in sync with makeAgent below)
 
     Agent* makeAgent(int which) {
         switch (which) {
@@ -112,7 +151,8 @@ public:
         case 3: return new TolerantAgent();
         case 4: return new FreakyAgent();
         case 5: return new T4TAgent();
-        default: throw "Bad argument passed to makeAgent";
+        case 6: return new RampSentinelAgent();
+        default: throw "Bad argument passed to makeAgent"; // an out-of-range index is impossible with the numAgents roster above
         }
     }
 
