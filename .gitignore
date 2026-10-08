@@ -3,3 +3,4 @@ results/
 *.o
 *.obj
 .scratch/
+sim/build/
