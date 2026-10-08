@@ -155,6 +155,34 @@ cleanly: earlier onsets pay retaliation locks while long horizons remain (T98 lo
 ≤6 rounds remain" is the empirical crossover on this composition; hold-out families test
 whether the crossover moves with composition.
 
+### 5.za Hold-out validation (63,000 runs: 7 families × {T104, T106, CandA} × 3,000, fresh seeds) — echo-tail discovery
+
+P(#1) by family (T104 / T106 / CandA), CRN-paired mean vs T104 in parens:
+
+| Family | T104 | T106 | CandA | crown holder |
+|---|---|---|---|---|
+| exploit-heavy | **0.172** | 0.147 | 0.000 (−273) | (F-class wins) |
+| elite-heavy | 0.171 | 0.189 (+3.8) | 0.000 (−400) | (F-class wins) |
+| small-pool | 0.139 | 0.140 | 0.018 (−25) | (F-class wins) |
+| uniform-zoo | 0.001 | 0.001 | 0.000 (−34) | (mixed) |
+| nice-heavy | 0.005 | 0.003 | **0.027 (+28)** | TF2T 39%, TolerantW5/10 36%, Alternator 15% |
+| llm-pattern | 0.000 | 0.000 | 0.000 (+79) | **TolerantW5 79%**, TolerantAgent 21% |
+| retal-heavy | 0.000 | 0.000 | 0.000 (+21) | **Grim_maj 100%** |
+
+**The echo-tail mechanism** (discovered here): the committed threshold ramp wars at n ≥ T
+against *clean responsive* pairs — they echo our war, we echo back (R1/R2), and the tail
+locks at 0/rd (~−22/match). Crown archetypes in cooperative-heavy pools (TolerantW5 79% of
+llm-pattern) keep their tails pristine at 4/rd and win the mean race while we burn ours.
+On `prior` the saint/tolerant harvest outweighed the echo cost; on TFT-heavy compositions
+it does not. **The ramp's value is "harvest only what cannot retaliate" — the committed
+threshold over-harvests.**
+
+**Fix — ramp mode 3 (self-limiting probe cycle)**: war from T; if the pair echoes
+(both opps warred after our ramp war) → one peace repair round (echo decays) → re-probe.
+Vs silent pairs: full commit +2/rd (untouched). Vs responsive pairs: ≈ −0.5/rd instead of
+−4/rd. Precedence inside the ramp window: R3-repair > R2 > R1. Certified next on
+{prior, llm-pattern, nice-heavy}.
+
 - **A — GTFT-3P baseline** (control): Peace; War iff either opp warred last round; 1-shot
   forgiveness. Solid vs responsive majority; misses saint exploitation; disguised-saint trap
   ≈ −240/match.
