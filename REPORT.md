@@ -108,25 +108,33 @@ the opponents' action streams.
 
 ## 7. Submission mechanics
 
-**Final submission file: `RampSentinelAgent.cpp`** (byte-copy of
-`profscode.cpp`, which is the professor's v2 harness verified whitespace-identical to the
-paste). Class: `RampSentinelAgent` — the hyphen form of the convention
-(`RampSentinelAgent`) cannot be a C++ identifier, so the file carries the
-hyphen convention and the class elides it. Identity header (name, roll, section,
-department) precedes the class; the class block is self-contained and cleanly extractable
-if the grader splices only the class. The professor's code is byte-intact except two
-declared edits: `numAgents` 6→7 and `makeAgent` case 6 (diff-verified).
+**Submission file: `RampSentinelAgent.cpp` — the class fragment only**,
+per the official instructions ("submit only your code fragment, which must be a single
+class file"; the tournament code must not be modified/submitted). Format mirrors the
+professor's snippet: class `RampSentinelAgent : public Agent` with the
+v2 const-ref signature and `override`. The hyphen form of the class name
+(`RampSentinelAgent`) cannot be a C++ identifier, so the *file* carries
+the exact hyphen convention and the class elides the hyphen. Fragment compliance
+verified: zero `#include` directives (no new dependencies), zero `rand()` usage
+(deterministic), zero references to harness internals (payoff/runner untouched).
 
-1. Compile: `g++ -O2 -std=c++17 RampSentinelAgent.cpp` — verified on
-   g++ (WSL) and 14.2 (MSYS2 ucrt64). (On this dev machine only,
-   `-static-libgcc -static-libstdc++` is additionally required due to a broken local
-   MSYS2 install — missing `libgcc_s.dll.a`; repair: `pacman -S
-   mingw-w64-ucrt-x86_64-gcc`. The submitted source needs no special flags on a healthy
-   toolchain. Note: v2 includes `<cxxabi.h>`, a libstdc++ header — the harness is
-   g++-targeted by the professor's own choice.)
-2. Demo tournament runs as-is (our agent in the top-3 band of 7; draws observed #1 and
-   #3 across seeds — the 35-match demo is small-sample; the campaign evidence, not the
-   demo, is authoritative).
+**Splice validation (scripted, deterministic)**: the fragment file was inserted verbatim
+into the pristine professor v2 master (`.scratch/professor_harness.cpp`, the verified
+paste) with the two wiring edits the professor will make (`numAgents` 7, `makeAgent`
+case) — compiles and runs on g++ (WSL) and MSYS2 ucrt64; demo draws observed #1 and #2
+of 7. (Local integrated demo builds — `profscode.cpp`, `ThreeWayPeaceWar.cpp` — are
+working artifacts, not the submission.)
+
+1. Compile (grader context): `g++ ThreeWayPeaceWar.cpp` with the fragment spliced —
+   verified. (On this dev machine only, MSYS2 additionally needs
+   `-static-libgcc -static-libstdc++` due to a broken local install — missing
+   `libgcc_s.dll.a`; repair: `pacman -S mingw-w64-ucrt-x86_64-gcc`. The fragment itself
+   needs nothing beyond the harness's own includes.) Note the harness includes
+   `<cxxabi.h>`, a libstdc++ header — g++-targeted by the professor's own code.
+2. Marking note: instructions grade "how well a player does in the tournament, as well
+   as how clever the strategy is" — the fragment's header comment carries the strategy
+   summary, citations, and validation numbers for the sophistication criterion; the full
+   evidence chain is REPORT.md + research/GAME-ANALYSIS.md.
 
 ## 8. Risk register (real-grader unknowns)
 
