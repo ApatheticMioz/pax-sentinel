@@ -26,7 +26,8 @@ calibrated 100-agent pool showed:
 
 The ship agent is therefore: **contrite-TFT backbone (zero leak) + double-war override +
 committed endgame war-ramp from round 104**. On the calibrated prior pool it takes the
-crown in **11.9% of tournaments (95% CI [10.9%, 12.9%])** vs 8.3–8.8% for the best
+crown in **11.7% of tournaments (freeze estimate, 95% CI [10.8%, 12.8%]; tuning estimate
+11.9%)** vs 8.3–8.8% for the best
 classical strategy and 0.08% for the plain GTFT baseline — and it **max-min dominates**
 every alternative across 8 stress compositions (worst deficit to any rival: +79 mean; the
 rivals' worst deficits to it: −273 to −400).
@@ -85,7 +86,7 @@ the opponents' action streams.
 | Mode-3 test (12k runs) | echo-repair probe-cycle ramp | **rejected** (crown pool 0.119 → 0.088; llm-pattern unrecovered — echo-tail hypothesis falsified) |
 | Adversary (12k runs) | CandG "coast + harvest" (TolerantW5 + T104 ramp) | **rejected** (llm-pattern +563 but prior −325, P(#1)=0 — prior-primary rule settles) |
 | **Adversarial loop** | all classes above + Tier-3 elites | **closed: no generated adversary displaces F_T104 on the primary** |
-| Freeze | fresh seeds, fidelity RNG, 8 families × 2 arms + self-mode | *(running; table appended on completion)* |
+| Freeze (32k + 8k runs) | fresh seeds 971M–979M, fidelity RNG, 8 families × 2 arms, distinct + self modes | **prior 0.117 [0.108, 0.128]** (tuning 0.119 replicated); F owns exploit/elite/small pools (0.170 / 0.166 / 0.151); max-min holds: F's worst deficit +79 (a both-zero pool), A's worst −401; self-mode 0.106 — ship confirmed |
 
 ## 6. Falsified hypotheses (kept as design ledger)
 

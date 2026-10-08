@@ -251,6 +251,43 @@ the next gate.
 - Brainstorm pool-EV priors: E ≈ 424/match vs GTFT 386 vs trickle-only 374
   (20% S / 40% G+U / 20% T / 10% N / 10% R pool). **Certify or kill in Phase C.**
 
+### 5.zd Freeze validation (fresh seeds, fidelity RNG, both enumeration modes) — SHIP CONFIRMED
+
+Configuration: 8 families × {CandF_T104, CandA_GTFT} × 4,000 runs, seeds 971000001–978000008,
+`--rng fidelity` (bitwise MSVCRT rand replica), mode=distinct, 16 threads. Self-mode (triples
+i≤j≤k) on prior + llm-pattern, seed 979000009. All CRN-paired within family (first file = F).
+
+| Family | F_T104 P(#1) [95% CI] | A_GTFT P(#1) | mean score F | paired Δ(A−F) | sd |
+|---|---|---|---|---|---|
+| prior | **0.117 [0.108, 0.128]** | 0.001 | 12,914.96 | −89.1 | 53.3 |
+| nice-heavy | 0.003 | 0.025 | 15,998.83 | +29.9 | 54.7 |
+| retal-heavy | 0.000 | 0.000 | 20,544.34 | +21.3 | 8.9 |
+| exploit-heavy | **0.170 [0.159, 0.182]** | 0.000 | 11,556.62 | −270.4 | 61.4 |
+| elite-heavy | **0.166 [0.155, 0.178]** | 0.000 | 16,356.69 | −400.9 | 54.3 |
+| uniform-zoo | 0.002 | 0.000 | 5,440.80 | −35.0 | 34.8 |
+| llm-pattern | 0.000 | 0.000 | 14,423.83 | +78.9 | 53.5 |
+| small-pool | **0.151 [0.140, 0.162]** | 0.018 | 3,561.53 | −26.3 | 28.7 |
+
+Readings:
+
+1. **Prior replicates out-of-sample**: 0.117 vs tuning-time 0.119 — the entire edge
+   survives fresh seeds and the bitwise-faithful RNG. GTFT control at 0.001 matches its
+   screening value (0.0008). The freeze estimate is the reportable number.
+2. **Hold-out structure identical to §5.za**: F owns rival-rich pools outright (0.170 /
+   0.166 / 0.151); cooperative-heavy pools stay coaster-crowned (F and A both ≈ 0 there —
+   the crown belongs to TolerantW5/Grim_maj/TF2T archetypes, not to any arm we fielded).
+3. **Max-min dominance holds in freeze**: F's worst paired deficit to A is +78.9
+   (llm-pattern, where both arms score P(#1)=0.000 anyway); A's worst deficit to F is
+   −400.9 (elite-heavy). F wins 5/8 families outright; no family flip vs the campaign.
+4. **Enumeration-mode robustness**: self-mode prior F_T104 P(#1) = 0.106 [0.097, 0.116]
+   (distinct: 0.117 [0.108, 0.128] — CIs touch; different seed streams, unpaired). The
+   −902.9 absolute-score gap vs the distinct reference is exactly the self-triple scale
+   bonus, not behavior. Our self-play is near-optimal (mutual-peace mirror ≈ 3.8/rd from
+   self-triples), so self-inclusive enumeration is, if anything, favorable vs
+   self-locking archetypes. llm-pattern self-mode 0.000, mean rank 50.7 ≈ distinct 48.3.
+5. **Ship decision re-confirmed under every freeze gate.** Port: RampSentinelAgent in
+   `ThreeWayPeaceWar.cpp` (commit 22418a3).
+
 ## 6. Methodology (binding)
 
 Common random numbers for every A/B; ≥10⁵ tournaments overnight on 16 cores; stratified pool
