@@ -108,19 +108,24 @@ the opponents' action streams.
 
 ## 7. Submission mechanics
 
-1. Open `ThreeWayPeaceWar.cpp`; find `// RENAME: <student-id><Name>Agent before submission`.
-2. Rename class `RampSentinelAgent` to `<student-id><Name>Agent` (valid identifier form of
-   the convention in `instructions.txt`) — **3 occurrences** (comment, class declaration,
-   `makeAgent` case 6).
-3. Compile: `g++ -O2 -std=c++17 ThreeWayPeaceWar.cpp` — re-verified on the professor's v2
-   base (const signatures) on g++ (WSL) and 14.2 (MSYS2 ucrt64). (On this dev machine only,
-   `-static-libgcc -static-libstdc++` is additionally required due to a broken local MSYS2
-   install — missing `libgcc_s.dll.a`; repair: `pacman -S mingw-w64-ucrt-x86_64-gcc`. The
-   submitted source needs no special flags on a healthy toolchain. Note: v2 includes
-   `<cxxabi.h>`, a libstdc++ header — the harness is g++-targeted by the professor's own
-   choice.)
-4. Demo tournament runs as-is (our agent in the top-3 band of 7; the 35-match demo is
-   small-sample — draws observed: #1 and #3 across seeds. The campaign evidence, not the
+**Final submission file: `RampSentinelAgent.cpp`** (byte-copy of
+`profscode.cpp`, which is the professor's v2 harness verified whitespace-identical to the
+paste). Class: `RampSentinelAgent` — the hyphen form of the convention
+(`RampSentinelAgent`) cannot be a C++ identifier, so the file carries the
+hyphen convention and the class elides it. Identity header (name, roll, section,
+department) precedes the class; the class block is self-contained and cleanly extractable
+if the grader splices only the class. The professor's code is byte-intact except two
+declared edits: `numAgents` 6→7 and `makeAgent` case 6 (diff-verified).
+
+1. Compile: `g++ -O2 -std=c++17 RampSentinelAgent.cpp` — verified on
+   g++ (WSL) and 14.2 (MSYS2 ucrt64). (On this dev machine only,
+   `-static-libgcc -static-libstdc++` is additionally required due to a broken local
+   MSYS2 install — missing `libgcc_s.dll.a`; repair: `pacman -S
+   mingw-w64-ucrt-x86_64-gcc`. The submitted source needs no special flags on a healthy
+   toolchain. Note: v2 includes `<cxxabi.h>`, a libstdc++ header — the harness is
+   g++-targeted by the professor's own choice.)
+2. Demo tournament runs as-is (our agent in the top-3 band of 7; draws observed #1 and
+   #3 across seeds — the 35-match demo is small-sample; the campaign evidence, not the
    demo, is authoritative).
 
 ## 8. Risk register (real-grader unknowns)
