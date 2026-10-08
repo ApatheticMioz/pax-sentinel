@@ -20,14 +20,35 @@
 //            match exactly).
 //   (iii) the dispatch test suite:
 //        (3) ramp fires (mode 1): scripted both-peace history, n >= ramp_T
-//            -> War, n == ramp_T - 1 -> Peace (checked for T=104/106/108);
+//            -> War, n == ramp_T - 1 -> Peace (checked for
+//            T=98/100/104/106/108);
 //        (4) mode2: same-seed determinism + q-hazard rate sanity at
 //            n = 100, 105, 109 (p = min(1, 3/(111-n)));
 //        (5) ramp + retaliation: after a ramp War, the next round vs a
 //            retaliating pair -> War via R2 (no suicide-Peace; the
 //            contrite override is suppressed inside the ramp window);
-//        (6) registration smoke (all six names) + same-seed tournament
+//        (6) registration smoke (all ten names) + same-seed tournament
 //            determinism + a mixed smoke pool.
+//
+//   (iv) slice C2c: mode 3 (self-limiting probe-cycle endgame, registered
+//        as CandF_mode3 = mode 3 @ the frozen T=104):
+//        (7)  in-window, my last = War, both opps warred last (echo)
+//            -> Peace (repair fires; it OVERRIDES R2 inside the window —
+//            dispatch precedence R3-repair > R2 > R1);
+//        (8)  in-window, my last = War, opps SILENT last (no echo,
+//            saint/tolerant) -> War (the full commit vs silent pairs);
+//        (9)  the echo cycle alternates W,P,W,P,W,P over 6 scripted
+//            in-window rounds (after a repair Peace the echo decays and
+//            the committed ramp resumes);
+//        (10) outside the window (n < T) mode3 == mode1(T=104) same-seed
+//            over full scripted drives (saint/echoer/warlock): identical
+//            first T rounds for all pair types, and the saint drive is
+//            byte-identical for the WHOLE match (no echo -> full commit);
+//        (11) mode3 vs mode1(T=104) on a scripted saint echo-free history:
+//            both commit identically (War exactly rds T..109 — the full
+//            110-round match);
+//        (12) registration smoke for CandF_mode3 + same-seed tournament
+//            determinism with mode3 in the variant pool.
 //
 // Round-index convention: n == number of completed rounds; histories hold
 // rds 0..n-1; "rd k" is the 0-based index k.
@@ -41,8 +62,10 @@
 
 #include "../zoo/zoo_common.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -53,11 +76,14 @@ using mas_sim::RngKind;
 using mas_sim::Registry;
 using mas_sim::TournamentMode;
 using mas_sim::make_CandF;
+using mas_sim::make_CandF_T98;
+using mas_sim::make_CandF_T100;
 using mas_sim::make_CandF_T104;
 using mas_sim::make_CandF_T106;
 using mas_sim::make_CandF_T108;
 using mas_sim::make_CandF_mode0;
 using mas_sim::make_CandF_mode2;
+using mas_sim::make_CandF_mode3;
 using mas_sim::run_tournament;
 
 namespace {
@@ -255,7 +281,7 @@ void test_f2_mode0_nasty3way() {
 // (3) R3 ramp fires (mode 1 threshold): scripted BOTH-PEACE history (no
 // opp war in the last round, so R1 would peace; no R2). War iff n >=
 // ramp_T; n == ramp_T - 1 must be peace. Checked for all three threshold
-// variants (T = 104, 106, 108) plus the default CandF (T=106).
+// variants (T = 98, 100, 104, 106, 108) plus the default CandF (T=106).
 // Also verified with a prior isolated opp war (rd 85) in the history: at
 // the boundary rounds the last round is peace, so R1's contrite (from a
 // prior my-war) cannot interfere — the ramp is the sole decider.
@@ -270,6 +296,8 @@ void test_f3_ramp_boundary() {
   };
   const TCase cases[] = {
       {"CandF (default T=106)", make_CandF(), 106},
+      {"CandF_T98", make_CandF_T98(), 98},
+      {"CandF_T100", make_CandF_T100(), 100},
       {"CandF_T104", make_CandF_T104(), 104},
       {"CandF_T106", make_CandF_T106(), 106},
       {"CandF_T108", make_CandF_T108(), 108},
@@ -471,18 +499,21 @@ void test_f5_ramp_retaliation() {
 
 // =============================================================================
 // (6) Registration smoke + same-seed determinism + mixed-pool smoke:
-//     all six names (CandF, T104, T106, T108, mode2, mode0) are in the
-//     registry; a 6-agent distinct tournament (all variants) across 3
-//     seeds runs without exceptions with finite scores, and a same-seed
-//     repeat produces an identical score vector; plus a mixed smoke pool
-//     (CandF + Nice + Nasty + Random + TFT_any) 3 runs, no throw,
-//     finite, same-seed identical.
+//     all ten names (CandF, T98, T100, T102, T104, T106, T108, mode2,
+//     mode3, mode0) are in the registry; a 7-agent distinct tournament
+//     (all deterministic + stochastic variants, C2c's mode3 included)
+//     across 3 seeds runs without exceptions with finite scores, and a
+//     same-seed repeat produces an identical score vector; plus a mixed
+//     smoke pool (CandF + Nice + Nasty + Random + TFT_any) 3 runs, no
+//     throw, finite, same-seed identical.
 // =============================================================================
 void test_f6_registration_smoke() {
   std::printf("--- (6) registration smoke + same-seed determinism ---\n");
 
-  const char* names[] = {"CandF",    "CandF_T104", "CandF_T106",
-                         "CandF_T108", "CandF_mode2", "CandF_mode0"};
+  const char* names[] = {"CandF",        "CandF_T98", "CandF_T100",
+                         "CandF_T102",   "CandF_T104", "CandF_T106",
+                         "CandF_T108",   "CandF_mode2", "CandF_mode3",
+                         "CandF_mode0"};
   bool all_reg = true;
   for (const char* n : names) {
     if (!Registry::instance().has(n)) {
@@ -490,21 +521,22 @@ void test_f6_registration_smoke() {
       std::printf("      missing registration: %s\n", n);
     }
   }
-  report(all_reg, "(6a) all six CandF names registered");
+  report(all_reg, "(6a) all ten CandF names registered (C2c: mode3)");
 
-  // All-variants 6-agent distinct smoke (3 seeds), no-throw + finite.
+  // All-variants 7-agent distinct smoke (3 seeds), no-throw + finite.
   {
-    std::vector<mas_sim::AgentFactory> f(6);
+    std::vector<mas_sim::AgentFactory> f(7);
     f[0] = make_CandF();
     f[1] = make_CandF_T104();
     f[2] = make_CandF_T106();
     f[3] = make_CandF_T108();
     f[4] = make_CandF_mode2();
-    f[5] = make_CandF_mode0();
+    f[5] = make_CandF_mode3();
+    f[6] = make_CandF_mode0();
     bool no_throw = true, all_finite = true;
     for (int r = 0; r < 3; ++r) {
       try {
-        const auto s = run_tournament(f, 6, 912000 + r,
+        const auto s = run_tournament(f, 7, 912000 + r,
                                       TournamentMode::kDistinct,
                                       RngKind::kSfc64);
         if (!finite_scores(s)) all_finite = false;
@@ -515,29 +547,30 @@ void test_f6_registration_smoke() {
       }
     }
     report(no_throw && all_finite,
-           "(6b) all-variants 6-agent distinct smoke: no exceptions, finite");
+           "(6b) all-variants 7-agent distinct smoke: no exceptions, finite");
   }
 
   // Same-seed determinism: run twice with the same seed, compare vectors.
   {
-    std::vector<mas_sim::AgentFactory> f(6);
+    std::vector<mas_sim::AgentFactory> f(7);
     f[0] = make_CandF();
     f[1] = make_CandF_T104();
     f[2] = make_CandF_T106();
     f[3] = make_CandF_T108();
     f[4] = make_CandF_mode2();
-    f[5] = make_CandF_mode0();
+    f[5] = make_CandF_mode3();
+    f[6] = make_CandF_mode0();
     const auto a =
-        run_tournament(f, 6, 913500, TournamentMode::kDistinct,
+        run_tournament(f, 7, 913500, TournamentMode::kDistinct,
                        RngKind::kSfc64);
     const auto b =
-        run_tournament(f, 6, 913500, TournamentMode::kDistinct,
+        run_tournament(f, 7, 913500, TournamentMode::kDistinct,
                        RngKind::kSfc64);
     std::printf("      same-seed scores: ");
     for (size_t i = 0; i < a.size(); ++i) std::printf("%.4f ", a[i]);
     std::printf("\n");
     report(a == b && finite_scores(a),
-           "(6c) same seed => identical score vector (all six variants)");
+           "(6c) same seed => identical score vector (all seven variants)");
   }
 
   // Mixed-pool smoke: CandF (default) + Nice + Nasty + Random + TFT_any
@@ -580,15 +613,220 @@ void test_f6_registration_smoke() {
   }
 }
 
+// =============================================================================
+// (7..12) slice C2c: mode 3 (self-limiting probe-cycle endgame) —
+// registered as CandF_mode3 (mode 3 @ the frozen T=104).
+//
+// A mode-agnostic scripted-history driver: `n0` = completed rounds before
+// the first decision here (pre-T history is all-peace), opponents play the
+// EXOGENOUS schedule opp_fn(n) (both opps the same) plus the fixed last
+// round `opp_last_init`; the agent's own output extends `my[]` exactly as
+// the engine would (n == history length at each call). Returns the decided
+// actions (one per driven round).
+// =============================================================================
+std::vector<int> drive(mas_sim::AgentFactory f, int n0, int count,
+                       int opp_last_init,
+                       const std::function<int(int)>& opp_fn) {
+  auto a = f();
+  std::vector<int> my(n0, 0);
+  std::vector<int> o1(n0, 0);
+  std::vector<int> o2(n0, 0);
+  if (n0 > 0) {
+    o1[n0 - 1] = opp_last_init;
+    o2[n0 - 1] = opp_last_init;
+  }
+  for (int i = 0; i < count; ++i) {
+    const int n = n0 + i;
+    const int mv = a->selectAction(n, my, o1, o2);
+    my.push_back(mv);
+    const int ov = opp_fn(n);
+    o1.push_back(ov);
+    o2.push_back(ov);
+  }
+  return std::vector<int>(my.begin() + n0, my.end());
+}
+
+// mode1 at the frozen T=104 (the committed-ramp reference arm for C2c).
+mas_sim::AgentFactory candf_mode1_T104() {
+  CandFParams p;
+  p.ramp_mode = 1;
+  p.ramp_T = 104;
+  return make_CandF(p);
+}
+
+// =============================================================================
+// (7) dispatch C2c test 1 — repair fires: in-window (n >= T=104), our LAST
+// action = War AND both opponents warred last round (echo detected) ->
+// Peace. This is ALSO a double-war round (R2 would war), so the repair's
+// precedence over R2 inside the window is exercised: the agent plays Peace.
+// =============================================================================
+void test_c2c1_repair_fires() {
+  std::printf("--- (7) C2c-1: in-window my-War + both-opp-war -> Peace (repair) ---\n");
+  // n=104 (== T), my[103]=1 (our ramp war), o1[103]=o2[103]=1 (they echoed).
+  auto agent = make_CandF_mode3()();
+  std::vector<int> my = rep(104, 0);
+  my[103] = 1;               // our last action = War (ramp-caused)
+  std::vector<int> o1 = rep(104, 0);
+  o1[103] = 1;               // both opps warred last round -> echo
+  std::vector<int> o2 = rep(104, 0);
+  o2[103] = 1;
+  const int repair = call(agent.get(), 104, my, o1, o2);
+  std::printf("      n=104 (in-window), my last=War, both opps warred last -> %d\n",
+              repair);
+  report(repair == 0,
+         "C2c-1: in-window, our last=War AND both opps warred last (echo) -> "
+         "Peace (repair fires; it overrides R2 inside the window)");
+}
+
+// =============================================================================
+// (8) dispatch C2c test 2 — commit (no echo): in-window (n >= T=104), our
+// LAST action = War but the opponents are SILENT last round (saints/
+// tolerant: no echo) -> War (the committed full commit; no repair fires).
+// =============================================================================
+void test_c2c2_commit_no_echo() {
+  std::printf("--- (8) C2c-2: in-window my-War + opps silent -> War (commit) ---\n");
+  auto agent = make_CandF_mode3()();
+  std::vector<int> my = rep(104, 0);
+  my[103] = 1;               // our last action = War
+  std::vector<int> o1 = rep(104, 0);  // both opps silent (saints)
+  std::vector<int> o2 = rep(104, 0);
+  const int commit = call(agent.get(), 104, my, o1, o2);
+  std::printf("      n=104 (in-window), my last=War, opps silent last -> %d\n",
+              commit);
+  report(commit == 1,
+         "C2c-2: in-window, our last=War but opps silent (no echo) -> War "
+         "(committed; the full commit vs silent pairs)");
+}
+
+// =============================================================================
+// (9) dispatch C2c test 3 — the echo cycle alternates W,P,W,P over 6
+// scripted in-window rounds. The pair is a same-round echoer: whenever we
+// war they war, so after a committed ramp War the NEXT round is an echo
+// (both opps warred last) -> repair Peace; their echo then decays (we
+// peaced, so the following round is NOT an echo) -> the committed ramp
+// resumes War. Driving from n=T=104 (pre-T all-peace) with a perpetual
+// echoer yields exactly W,P,W,P,W,P.
+// =============================================================================
+void test_c2c3_echo_cycle() {
+  std::printf("--- (9) C2c-3: echo cycle W,P,W,P,W,P over 6 in-window rounds ---\n");
+  // n0=104 (first decision is n=104==T; pre-T all-peace). The echoer wars
+  // every round (opp_fn == 1) and also warred at the last pre-driven round
+  // (opp_last_init=1) so the very first decision sees a live echo.
+  const std::vector<int> seq =
+      drive(make_CandF_mode3(), 104, 6, 1, [](int) { return 1; });
+  const std::string s =
+      "      mode3 vs echoer, n=104..109: " +
+      std::to_string(seq[0]) + std::to_string(seq[1]) + std::to_string(seq[2]) +
+      std::to_string(seq[3]) + std::to_string(seq[4]) + std::to_string(seq[5]) +
+      "\n";
+  std::printf("%s", s.c_str());
+  const std::vector<int> expect = {1, 0, 1, 0, 1, 0};  // W,P,W,P,W,P
+  report(seq == expect,
+         "C2c-3: echo cycle alternates W,P,W,P,W,P over 6 in-window rounds "
+         "(repair after each war; committed war resumes after each repair)");
+}
+
+// =============================================================================
+// (10) dispatch C2c test 4 — outside the window (n < T) mode3 is unchanged
+// vs mode1(T=104). Both arms have no ramp below T (mode1's ramp war needs
+// n>=104; mode3's window also starts at T), so both reduce to R2-then-R1
+// and must decide identically. Driven over n=90..103 (the ramp window but
+// below T) with an exogenous alternating opp-war schedule, same-seed, the
+// two decided streams must match exactly.
+// =============================================================================
+void test_c2c4_outside_window_matches_mode1() {
+  std::printf("--- (10) C2c-4: outside window (n<T) mode3 == mode1(T=104) ---\n");
+  // n0=90, count=14 -> n=90..103 (all < T=104). Exogenous opp schedule:
+  // opps war on even n, peace on odd n (both opps the same) — a fixed
+  // pattern independent of our output, so the two agents stay in lockstep.
+  const auto opp = [](int n) { return (n % 2 == 0) ? 1 : 0; };
+  const std::vector<int> m3 = drive(make_CandF_mode3(), 90, 14, 0, opp);
+  // mode1 at the same frozen T=104 (the committed-ramp reference arm).
+  const std::vector<int> m1 = drive(candf_mode1_T104(), 90, 14, 0, opp);
+  std::printf("      n=90..103: mode3 = ");
+  for (int v : m3) std::printf("%d", v);
+  std::printf(", mode1(T104) = ");
+  for (int v : m1) std::printf("%d", v);
+  std::printf("\n");
+  report(m3 == m1,
+         "C2c-4: outside the window (n<T) mode3 == mode1(T=104) same-seed "
+         "(no ramp below T; both R2-then-R1)");
+}
+
+// =============================================================================
+// (11) dispatch C2c test 5 — mode3 vs mode1(T=104) on a scripted SAINT
+// echo-free history: both commit identically. Saints (Nice) never war, so
+// no echo ever occurs and the mode3 repair never fires -> mode3 is the
+// committed ramp (War from T), exactly mode1. Driven over the full match
+// (n=0..109) vs two all-peace opps, the two decided streams must match,
+// with both committing War exactly from n=T=104 on.
+// =============================================================================
+void test_c2c5_saint_commit_identical() {
+  std::printf("--- (11) C2c-5: vs saint (echo-free) mode3 == mode1 (both commit) ---\n");
+  // Full 110-round match vs two silent (all-peace) saints.
+  const auto saints = [](int) { return 0; };
+  const std::vector<int> m3 = drive(make_CandF_mode3(), 0, 110, 0, saints);
+  const std::vector<int> m1 = drive(candf_mode1_T104(), 0, 110, 0, saints);
+  // Both must be all-peace until n=103 and all-War from n=104 (== T).
+  // (n0=0, so decided[i] corresponds to n=i.)
+  bool identical = (m3 == m1);
+  bool commit_ok = true;
+  for (int i = 0; i < 110; ++i) {
+    const int expected = (i >= 104) ? 1 : 0;  // War iff n >= T=104
+    if (m3[i] != expected || m1[i] != expected) commit_ok = false;
+  }
+  std::printf("      last 8 mode3 (n=102..109): ");
+  for (int i = 102; i < 110; ++i) std::printf("%d", m3[i]);
+  std::printf("  (expect 0 0 1 1 1 1 1 1)\n");
+  report(identical && commit_ok,
+         "C2c-5: vs saint (echo-free) mode3 and mode1(T=104) commit "
+         "identically (War exactly from n=T=104)");
+}
+
+// =============================================================================
+// (12) dispatch C2c test 6 — registration smoke + same-seed determinism for
+// CandF_mode3: the name is registered, and a small same-seed tournament
+// containing mode3 runs twice with an identical score vector.
+// =============================================================================
+void test_c2c6_registration_determinism() {
+  std::printf("--- (12) C2c-6: CandF_mode3 registration + same-seed determinism ---\n");
+  const bool registered = Registry::instance().has("CandF_mode3");
+  report(registered, "C2c-6a: CandF_mode3 registered");
+
+  const auto nice = Registry::instance().get("NiceAgent");
+  const auto nasty = Registry::instance().get("NastyAgent");
+  std::vector<mas_sim::AgentFactory> f(4);
+  f[0] = make_CandF_mode3();
+  f[1] = make_CandF_T104();
+  f[2] = nice;
+  f[3] = nasty;
+  const auto a = run_tournament(f, 4, 915000, TournamentMode::kDistinct,
+                                RngKind::kSfc64);
+  const auto b = run_tournament(f, 4, 915000, TournamentMode::kDistinct,
+                                RngKind::kSfc64);
+  std::printf("      same-seed scores: ");
+  for (size_t i = 0; i < a.size(); ++i) std::printf("%.4f ", a[i]);
+  std::printf("\n");
+  report(a == b && finite_scores(a),
+         "C2c-6b: same seed => identical score vector (mode3 in pool)");
+}
+
 int main() {
-  std::printf("=== candidates_f_test (slice C2a: CandF endgame-ramp "
-              "retaliator) ===\n");
+  std::printf("=== candidates_f_test (slice C2a/C2c: CandF endgame-ramp "
+              "retaliator + mode3 probe-cycle) ===\n");
   test_f1_mode0_nice3way();
   test_f2_mode0_nasty3way();
   test_f3_ramp_boundary();
   test_f4_mode2();
   test_f5_ramp_retaliation();
   test_f6_registration_smoke();
+
+  test_c2c1_repair_fires();
+  test_c2c2_commit_no_echo();
+  test_c2c3_echo_cycle();
+  test_c2c4_outside_window_matches_mode1();
+  test_c2c5_saint_commit_identical();
+  test_c2c6_registration_determinism();
 
   if (g_failures == 0) {
     std::printf("ALL PASS (%d checks)\n", g_checks);

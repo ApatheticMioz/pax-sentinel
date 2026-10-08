@@ -29,8 +29,19 @@ namespace mas_sim {
 //                2 = Q-HAZARD — war w.p. min(1, ramp_c / (111 - n)) each
 //     round, one fast_rng draw (the q-hazard: 111-n is the number of
 //     rounds remaining INCLUDING the current one under the horizon model
-//     H = 90 + round(20*u) in [90, 110]).
-//   * ramp_T: the threshold round for mode 1 (the ramp war round).
+//     H = 90 + round(20*u) in [90, 110]);
+//                3 = PROBE-CYCLE (slice C2c, self-limiting endgame) —
+//     identical to mode 1 (war iff n >= ramp_T) EXCEPT the echo-repair:
+//     if our LAST action was War AND both opponents warred last round
+//     (they echoed our ramp war), play ONE Peace this round (repair —
+//     their echo decays the following round), then resume the committed
+//     War the round after (W/P probe cycle vs echoers; the committed
+//     full war vs silent pairs — saints/tolerant never echo, so no
+//     repair ever fires and we war every round from T). In-window
+//     precedence: R3-repair > R2 > R1 (the repair OVERRIDES R2 —
+//     checked before it, otherwise it could never fire); outside the
+//     window (n < ramp_T) mode 3 is identical to mode 1.
+//   * ramp_T: the threshold round for modes 1 and 3 (the ramp war round).
 //   * ramp_c: the hazard constant for mode 2 (expected remaining wars in
 //     the endgame window).
 //
@@ -54,6 +65,8 @@ AgentFactory make_CandF(const CandFParams& p = CandFParams());
 //   CandF_T106 = mode 1, ramp_T = 106 (the default arm);
 //   CandF_T108 = mode 1, ramp_T = 108;
 //   CandF_mode2 = mode 2 (q-hazard, default ramp_c);
+//   CandF_mode3 = mode 3 (probe-cycle: mode-1 ramp at T=104 + echo-repair;
+//     the C2c self-limiting endgame arm);
 //   CandF_mode0 = mode 0 (ramp off; the pure deterministic mirror).
 AgentFactory make_CandF_T98();
 AgentFactory make_CandF_T100();
@@ -62,6 +75,7 @@ AgentFactory make_CandF_T104();
 AgentFactory make_CandF_T106();
 AgentFactory make_CandF_T108();
 AgentFactory make_CandF_mode2();
+AgentFactory make_CandF_mode3();
 AgentFactory make_CandF_mode0();
 
 }  // namespace mas_sim

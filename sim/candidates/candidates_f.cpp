@@ -12,7 +12,7 @@
 //     contrition;
 //   * R3 — the endgame ramp: active only from n >= 90 (the horizon is
 //     uniform on [90, 110]; the agent never sees H), in the parameterized
-//     mode 0 (off) / 1 (threshold) / 2 (q-hazard).
+//     mode 0 (off) / 1 (threshold) / 2 (q-hazard) / 3 (probe-cycle, C2c).
 //
 // Precedence (evaluated top-down EVERY round; first match decides):
 //   R0  n == 0 -> peace (open peace).
@@ -22,6 +22,11 @@
 //       alone would give a contrite peace, and it takes the round away
 //       from the ramp draw so a q-hazard miss can never skip a
 //       both-opp-war response).
+//       INSIDE a mode-3 ramp window (n >= ramp_T) the echo-repair below
+//       is checked FIRST (precedence R3-repair > R2 > R1 — the repair
+//       must override R2 or it could never fire, since the echo
+//       situation IS a double-war round); OUTSIDE the window (n <
+//       ramp_T) R2 keeps its usual precedence (mode 3 == mode 1 there).
 //   R3  ENDGAME RAMP (n >= 90 only; the agent never sees H, the window
 //       starts at the minimum horizon):
 //        mode 1 (threshold): war iff n >= ramp_T;
@@ -29,11 +34,27 @@
 //              fast_rng() uniform draw per ramp round (the 111-n term is
 //              the rounds remaining INCLUDING this round under H =
 //              90 + round(20*u) in [90, 110]);
+//        mode 3 (probe-cycle, C2c): IDENTICAL to mode 1 (war iff
+//              n >= ramp_T) except the echo-repair: if our LAST action
+//              was War AND both opponents warred last round (an echo of
+//              our ramp war), play ONE Peace this round (repair — their
+//              echo decays the following round: our peace makes their
+//              last observed round peaceful, so the next round's repair
+//              does not fire and the committed ramp resumes War). This
+//              yields a self-limiting W/P/W/P probe cycle vs echoers
+//              (~ -0.5/rd tail instead of the committed ramp's ~ -22/rd
+//              0/rd war lock) while silent pairs (saints/tolerant: never
+//              echo) see exactly the mode-1 committed war (+2/rd
+//              harvest);
 //        mode 0 (off): the rule never fires.
 //       Ramp-wars are COMMITTED: R3 sits before R1, so once the ramp is
 //       in play the CTFT3P contrite override (my last round war + both
 //       opps peace -> peace) can never fire inside the window — there is
 //       no contrition inside the ramp window, exactly as specified.
+//       The mode-3 repair is the single deliberate exception: it returns
+//       one peace round by construction (its precondition is the
+//       echo/double-war round, in which R1 would war anyway — the
+//       repair replaces that war, it can never replace a R1-peace).
 //   R1  BACKBONE (the CTFT3P mirror; the default fall-through):
 //        base = (o1[n-1] == 1 || o2[n-1] == 1) ? 1 : 0;   // TFT_any
 //        if (my[n-1] == 1 && o1[n-1] == 0 && o2[n-1] == 0)
@@ -64,7 +85,8 @@
 //     0/1 short-circuit without a draw never triggers here).
 //   * Stateless per call (like CTFT3P): the engine constructs a fresh
 //     agent per match, so nothing else to keep.
-//   * Registered via REGISTER_AGENT(CandF) and the eight named variants.
+//   * Registered via REGISTER_AGENT(CandF) and the named variants
+//     (T98/T100/T102/T104/T106/T108, mode2, mode3, mode0).
 // =============================================================================
 
 #include "candidates_f.hpp"
@@ -103,6 +125,25 @@ class CandF : public AgentBase {
                    std::vector<int>& o2) override {
     // R0: open peace.
     if (n == 0) return 0;
+
+    // R3 (mode 3, slice C2c): the self-limiting probe-cycle endgame.
+    // IDENTICAL to mode 1 (committed war iff n >= ramp_T) except the
+    // echo-repair. Inside the mode-3 ramp window (n >= ramp_T) the repair
+    // OVERRIDES R2 (dispatch precedence R3-repair > R2 > R1): the echo
+    // situation is exactly a double-war round (our last War + both opps
+    // warred last), so the repair MUST be tested before R2 or it could
+    // never fire. If our LAST action was War AND both opponents warred
+    // last round (they echoed our ramp war) -> one Peace (repair): their
+    // echo decays the following round (our Peace makes their last
+    // observed round peaceful, so the next round is NOT an echo and the
+    // committed ramp resumes War). vs silent pairs (saints/tolerant:
+    // never echo) the repair never fires -> the committed full war,
+    // exactly mode 1. Outside the window (n < ramp_T) mode 3 is identical
+    // to mode 1 (R2/R1 fall-through below; the ramp is off).
+    if (p_.ramp_mode == 3 && n >= p_.ramp_T) {
+      if (my[n - 1] != 0 && o1[n - 1] != 0 && o2[n - 1] != 0) return 0;  // repair
+      return 1;  // committed ramp war (mode 1 semantics, n >= ramp_T)
+    }
 
     // R2: the unconditional override — both opponents warred last round.
     if (o1[n - 1] != 0 && o2[n - 1] != 0) return 1;
@@ -183,6 +224,17 @@ AgentFactory make_CandF_mode2() {
   return make_CandF(p);
 }
 
+// C2c: the self-limiting probe-cycle endgame arm. Mode 3 at the FROZEN
+// T=104 threshold (the C2b grid's crown arm: P(#1)=0.119, peak bracketed
+// both sides) with the echo-repair that breaks the committed-ramp tail
+// war against clean responsive (echoing) pairs.
+AgentFactory make_CandF_mode3() {
+  CandFParams p;
+  p.ramp_mode = 3;
+  p.ramp_T = 104;
+  return make_CandF(p);
+}
+
 AgentFactory make_CandF_mode0() {
   CandFParams p;
   p.ramp_mode = 0;
@@ -198,6 +250,7 @@ AgentFactory make_agent_CandF_T104() { return make_CandF_T104(); }
 AgentFactory make_agent_CandF_T106() { return make_CandF_T106(); }
 AgentFactory make_agent_CandF_T108() { return make_CandF_T108(); }
 AgentFactory make_agent_CandF_mode2() { return make_CandF_mode2(); }
+AgentFactory make_agent_CandF_mode3() { return make_CandF_mode3(); }
 AgentFactory make_agent_CandF_mode0() { return make_CandF_mode0(); }
 
 // Link-time registration (names are the literal dispatch tokens).
@@ -209,6 +262,7 @@ REGISTER_AGENT(CandF_T104);
 REGISTER_AGENT(CandF_T106);
 REGISTER_AGENT(CandF_T108);
 REGISTER_AGENT(CandF_mode2);
+REGISTER_AGENT(CandF_mode3);
 REGISTER_AGENT(CandF_mode0);
 
 }  // namespace mas_sim
