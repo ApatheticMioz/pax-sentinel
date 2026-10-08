@@ -1,0 +1,27 @@
+CandF_T106
+TFT_any 6
+TFT_maj 2
+BrokenTFT_1 2
+Joss10 2
+TF2T_any 2
+TolerantAgent 3
+TolerantW5 4
+TolerantW10 3
+RandomAgent 4
+NoisyP20 2
+NoisyP80
+NiceAgent 3
+Freaky25
+NastyAgent 2
+Grim_any 2
+Grim2Any
+GrimAnyForgive1
+Freaky75 2
+Alternator
+PeriodicPPW 2
+Prober_DDCC
+Detective
+Gradual3P
+CTFT3P
+KLenient2
+HybridA

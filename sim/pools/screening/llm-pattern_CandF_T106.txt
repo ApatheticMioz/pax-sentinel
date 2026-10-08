@@ -1,0 +1,11 @@
+CandF_T106
+TFT_any 25
+BrokenTFT_1 10
+TolerantAgent 15
+TolerantW5 10
+Joss10 8
+Grim_any 8
+NiceAgent 8
+NastyAgent 5
+Freaky25 5
+RandomAgent 5

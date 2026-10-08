@@ -180,8 +180,29 @@ threshold over-harvests.**
 **Fix — ramp mode 3 (self-limiting probe cycle)**: war from T; if the pair echoes
 (both opps warred after our ramp war) → one peace repair round (echo decays) → re-probe.
 Vs silent pairs: full commit +2/rd (untouched). Vs responsive pairs: ≈ −0.5/rd instead of
-−4/rd. Precedence inside the ramp window: R3-repair > R2 > R1. Certified next on
-{prior, llm-pattern, nice-heavy}.
+−4/rd. Precedence inside the ramp window: R3-repair > R2 > R1.
+
+### 5.zb Mode-3 certification: REJECTED; CandF_T104 frozen as ship candidate
+
+Mode 3 (echo-repair probe cycle, T=104), 4,000 runs/arm on the three decisive families:
+
+| Family | mode 3 | T104 | CandA |
+|---|---|---|---|
+| prior | 0.088 / 12,906 | **0.119 / 12,914** | 0.001 |
+| llm-pattern | 14,415 | 14,422 | **14,501** |
+| nice-heavy | 0.004 | 0.005 | **0.027** |
+
+The repair forfeits harvest on the crown pool (−0.119 → 0.088) and recovers ~none of A's
+llm-pattern gap — **the echo-tail hypothesis is falsified**: A's cooperative-heavy lead is
+not primarily TFT-echo repairable; the committed ramp is genuinely −EV when the crown
+archetype is a pure coaster (TolerantW5 = 79% of llm-pattern crowns) and prey mass is
+thin. Ship decision: **CandF_T104** — primary (prior) won by an order of magnitude, and
+max-min across families: F's worst deficit to A is +79 (llm-pattern); A's worst deficit
+to F is −400 (elite-heavy). Mode 3 retained in the registry as a falsified arm.
+
+**Open adversary before freeze — "coast + harvest" (CandG_TolRamp)**: TolerantW5 backbone
++ mode-1 T104 ramp. If it beats F_T104 on both llm-pattern and prior, the backbone choice
+reopens; if it wins only llm-pattern, the prior-primary trade stands.
 
 - **A — GTFT-3P baseline** (control): Peace; War iff either opp warred last round; 1-shot
   forgiveness. Solid vs responsive majority; misses saint exploitation; disguised-saint trap

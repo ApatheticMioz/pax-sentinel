@@ -1,0 +1,15 @@
+CandF_mode3
+NiceAgent 12
+Freaky25 6
+TolerantAgent 10
+TolerantW5 10
+TolerantW10 8
+TFT_any 12
+TFT_maj 8
+TF2T_any 6
+Joss10 5
+RandomAgent 8
+NoisyP20 4
+Grim_any 4
+Alternator 3
+PeriodicPPW 3
