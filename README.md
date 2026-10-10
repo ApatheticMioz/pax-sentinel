@@ -22,10 +22,24 @@ A player's payoff depends on their own action and the count of opponent War choi
 payoff[A][B][C] = {{{4, 1}, {1, -1}}, {{6, 3}, {3, 0}}};
 ```
 
-### Strategic Dynamics
+### Strategic Dynamics & Conflict States
 - **Strict Dominance**: In any single stage, War strictly dominates Peace ($6 > 4$, $3 > 1$, $0 > -1$). The unique stage Nash equilibrium is $(1, 1, 1) = (0, 0, 0)$, yet mutual cooperation $(0, 0, 0) = (4, 4, 4)$ Pareto-dominates.
-- **Retaliation Externalities**: In 3-player interactions, a defection hits both co-players simultaneously. Feuds are highly cascade-prone.
+- **Retaliation Externalities**: In 3-player interactions, defection strikes both co-players simultaneously. Feuds are highly cascade-prone.
 - **TFT-Pair Self-Lock**: Two standard Tit-for-Tat agents facing each other become locked in permanent defection after a single mutual war round; no third-party cooperation can break the loop.
+
+```mermaid
+stateDiagram-v2
+    [*] --> MutualPeace: Opening Round (0, 0, 0)
+    
+    MutualPeace --> MutualPeace: All Choose Peace (+4, +4, +4)
+    MutualPeace --> AsymmetricConflict: 1 Defection (+6 vs +1, +1)
+    
+    AsymmetricConflict --> CascadeWar: Retaliation Cascade
+    AsymmetricConflict --> MutualPeace: Contrite Repair (Wu & Axelrod)
+    
+    CascadeWar --> AbsorbingWarLock: TFT-Pair Self-Lock (Both War)
+    AbsorbingWarLock --> AbsorbingWarLock: Absorbing State (0, 0, 0) - Third-Party Peace Cannot Break
+```
 
 ---
 
@@ -36,13 +50,31 @@ payoff[A][B][C] = {{{4, 1}, {1, -1}}, {{6, 3}, {3, 0}}};
 ### Decision Pipeline
 Evaluated top-down each round (first rule that matches determines the action):
 
-```
-Round 0               ──> R0: Peace (Axelrod nice opening)
-Both opps warred t-1  ──> R2: War   (Unconditional double-war override; avoids sucker -1)
-Round n >= 104        ──> R3: War   (Committed endgame ramp; shadow of future <= 6 rds)
-My unprovoked war t-1 ──> R1: Peace (Wu-Axelrod contrition; repairs accidental feuds)
-Either opp warred t-1 ──> R1: War   (Reciprocal TFT_any mirror)
-Otherwise             ──> R1: Peace (Sustain mutual cooperation at 4/rd)
+```mermaid
+flowchart TD
+    Start(["Round n, Histories"]) --> R0{"n == 0 ?"}
+    R0 -- "Yes" --> Peace0["Peace (0)<br/><i>Axelrod Nice Opening</i>"]
+    R0 -- "No" --> R2{"Both Opps Warred<br/>at t-1 ?"}
+    
+    R2 -- "Yes" --> War2["War (1)<br/><i>Double-War Override</i>"]
+    R2 -- "No" --> R3{"n >= 104 ?"}
+    
+    R3 -- "Yes" --> War3["War (1)<br/><i>Committed Endgame Ramp</i>"]
+    R3 -- "No" --> R1_Contrite{"My War & Both Opps Peaced<br/>at t-1 ?"}
+    
+    R1_Contrite -- "Yes" --> Peace1["Peace (0)<br/><i>Contrite Feud Repair</i>"]
+    R1_Contrite -- "No" --> R1_Mirror{"Either Opp Warred<br/>at t-1 ?"}
+    
+    R1_Mirror -- "Yes" --> War1["War (1)<br/><i>TFT Reciprocity</i>"]
+    R1_Mirror -- "No" --> Peace2["Peace (0)<br/><i>Mutual Cooperation (4/rd)</i>"]
+
+    classDef actionPeace fill:#1b4332,stroke:#40916c,stroke-width:2px,color:#d8f3dc;
+    classDef actionWar fill:#5c1d1d,stroke:#e63946,stroke-width:2px,color:#ffccd5;
+    classDef condition fill:#1e293b,stroke:#475569,stroke-width:1px,color:#f8fafc;
+    
+    class Peace0,Peace1,Peace2 actionPeace;
+    class War2,War3,War1 actionWar;
+    class R0,R2,R3,R1_Contrite,R1_Mirror condition;
 ```
 
 ```cpp
@@ -79,6 +111,43 @@ Earlier onsets ($T < 104$) suffer retaliatory lockouts; later onsets ($T > 104$)
 ## 3. The Dataset: 10.2 Trillion Simulated Choices
 
 The repository represents one of the largest empirical game-theoretic simulation campaigns executed for multi-agent dilemma tournaments:
+
+```mermaid
+flowchart LR
+    subgraph Zoo["Opponent Zoo (60 Bots)"]
+        direction TB
+        T0["Tier 0: Verbatim Baselines"]
+        T1["Tier 1: Classmate Variants"]
+        T2["Tier 2: Strong Submitters"]
+        T3["Tier 3: Adversarial Elites"]
+    end
+
+    subgraph Core["Simulation Engine"]
+        direction TB
+        Manifest["8 Pool Compositions<br/>(100 Agents each)"]
+        WorkerPool["16-Thread Worker Pool<br/>(Deterministic CRN)"]
+        Fidelity["MSVCRT / SFC64 Engines<br/>(161,700 Triples / run)"]
+    end
+
+    subgraph Data["Empirical Scale"]
+        direction TB
+        Runs["300,000+ Tournaments"]
+        Decisions["10.2 Trillion Decisions"]
+        Verdict["T=104 Dominant Onset<br/>P(#1) = 0.119 Maximin Champion"]
+    end
+
+    Zoo --> Manifest
+    Manifest --> WorkerPool
+    WorkerPool --> Fidelity
+    Fidelity --> Runs
+    Runs --> Decisions
+    Decisions --> Verdict
+
+    classDef box fill:#0f172a,stroke:#334155,stroke-width:1px,color:#e2e8f0;
+    classDef highlight fill:#1e1b4b,stroke:#6366f1,stroke-width:2px,color:#e0e7ff;
+    class T0,T1,T2,T3,Manifest,WorkerPool,Fidelity,Runs box;
+    class Decisions,Verdict highlight;
+```
 
 - **Matches Per Tournament**: In a 100-agent tournament, evaluating all triples yields:
   $$\binom{100}{3} = \frac{100 \times 99 \times 98}{6} = 161,700 \text{ matches}$$
