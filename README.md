@@ -2,13 +2,13 @@
 
 High-throughput tournament engine, 60-bot adversary zoo, and empirical game-theoretic research suite for the **3-Player Iterated Peace-War** game (a 3-player repeated Continuous Prisoner's Dilemma).
 
-Includes the complete simulation harness and **`RampSentinel`**, a deterministic, memory-free $O(1)$ agent proven to dominate across **10.2 trillion simulated decisions** in 300,000+ Monte Carlo tournament runs.
+Includes the complete simulation harness and **`RampSentinel`**, a deterministic, memory-free `O(1)` agent proven to dominate across **10.2 trillion simulated decisions** in 300,000+ Monte Carlo tournament runs.
 
 ---
 
 ## 1. The Game: 3-Player Repeated Peace-War
 
-Three players interact simultaneously over an unknown horizon $N \sim \text{Uniform}(90, 110)$. Each round, players choose **Peace (0)** or **War (1)**.
+Three players interact simultaneously over an unknown horizon `N ~ Uniform(90, 110)`. Each round, players choose **Peace (0)** or **War (1)**.
 
 ### Payoff Tensor
 A player's payoff depends on their own action and the count of opponent War choices:
@@ -23,7 +23,7 @@ payoff[A][B][C] = {{{4, 1}, {1, -1}}, {{6, 3}, {3, 0}}};
 ```
 
 ### Strategic Dynamics & Conflict States
-- **Strict Dominance**: In any single stage, War strictly dominates Peace ($6 > 4$, $3 > 1$, $0 > -1$). The unique stage Nash equilibrium is $(1, 1, 1) = (0, 0, 0)$, yet mutual cooperation $(0, 0, 0) = (4, 4, 4)$ Pareto-dominates.
+- **Strict Dominance**: In any single stage, War strictly dominates Peace (6 > 4, 3 > 1, 0 > −1). The unique stage Nash equilibrium is (1, 1, 1) = (0, 0, 0), yet mutual cooperation (0, 0, 0) = (4, 4, 4) Pareto-dominates.
 - **Retaliation Externalities**: In 3-player interactions, defection strikes both co-players simultaneously. Feuds are highly cascade-prone.
 - **TFT-Pair Self-Lock**: Two standard Tit-for-Tat agents facing each other become locked in permanent defection after a single mutual war round; no third-party cooperation can break the loop.
 
@@ -35,17 +35,17 @@ stateDiagram-v2
     MutualPeace --> AsymmetricConflict: 1 Defection (+6 vs +1, +1)
     
     AsymmetricConflict --> CascadeWar: Retaliation Cascade
-    AsymmetricConflict --> MutualPeace: Contrite Repair (Wu & Axelrod)
+    AsymmetricConflict --> MutualPeace: Contrite Repair (Wu and Axelrod)
     
     CascadeWar --> AbsorbingWarLock: TFT-Pair Self-Lock (Both War)
-    AbsorbingWarLock --> AbsorbingWarLock: Absorbing State (0, 0, 0) - Third-Party Peace Cannot Break
+    AbsorbingWarLock --> AbsorbingWarLock: Absorbing State (0, 0, 0) - Irreversible
 ```
 
 ---
 
 ## 2. The Agent: `RampSentinel` (`CandF_T104`)
 
-`RampSentinel` is an $O(1)$ time, zero-allocation, stateless strategy with zero RNG dependencies. It couples a contrite reciprocal backbone with an empirical threshold ramp.
+`RampSentinel` is an `O(1)` time, zero-allocation, stateless strategy with zero RNG dependencies. It couples a contrite reciprocal backbone with an empirical threshold ramp.
 
 ### Decision Pipeline
 Evaluated top-down each round (first rule that matches determines the action):
@@ -53,20 +53,20 @@ Evaluated top-down each round (first rule that matches determines the action):
 ```mermaid
 flowchart TD
     Start(["Round n, Histories"]) --> R0{"n == 0 ?"}
-    R0 -- "Yes" --> Peace0["Peace (0)<br/><i>Axelrod Nice Opening</i>"]
-    R0 -- "No" --> R2{"Both Opps Warred<br/>at t-1 ?"}
+    R0 -- "Yes" --> Peace0["Peace (0) - Axelrod Nice Opening"]
+    R0 -- "No" --> R2{"Both Opps Warred at t-1 ?"}
     
-    R2 -- "Yes" --> War2["War (1)<br/><i>Double-War Override</i>"]
+    R2 -- "Yes" --> War2["War (1) - Double-War Override"]
     R2 -- "No" --> R3{"n >= 104 ?"}
     
-    R3 -- "Yes" --> War3["War (1)<br/><i>Committed Endgame Ramp</i>"]
-    R3 -- "No" --> R1_Contrite{"My War & Both Opps Peaced<br/>at t-1 ?"}
+    R3 -- "Yes" --> War3["War (1) - Committed Endgame Ramp"]
+    R3 -- "No" --> R1_Contrite{"My War and Both Opps Peaced at t-1 ?"}
     
-    R1_Contrite -- "Yes" --> Peace1["Peace (0)<br/><i>Contrite Feud Repair</i>"]
-    R1_Contrite -- "No" --> R1_Mirror{"Either Opp Warred<br/>at t-1 ?"}
+    R1_Contrite -- "Yes" --> Peace1["Peace (0) - Contrite Feud Repair"]
+    R1_Contrite -- "No" --> R1_Mirror{"Either Opp Warred at t-1 ?"}
     
-    R1_Mirror -- "Yes" --> War1["War (1)<br/><i>TFT Reciprocity</i>"]
-    R1_Mirror -- "No" --> Peace2["Peace (0)<br/><i>Mutual Cooperation (4/rd)</i>"]
+    R1_Mirror -- "Yes" --> War1["War (1) - TFT Reciprocity"]
+    R1_Mirror -- "No" --> Peace2["Peace (0) - Mutual Cooperation (4/rd)"]
 
     classDef actionPeace fill:#1b4332,stroke:#40916c,stroke-width:2px,color:#d8f3dc;
     classDef actionWar fill:#5c1d1d,stroke:#e63946,stroke-width:2px,color:#ffccd5;
@@ -93,18 +93,18 @@ int selectAction(int n, const std::vector<int>& myHistory,
 }
 ```
 
-### Why $T = 104$?
-Because the horizon is uniformly distributed between 90 and 110, rounds $n \ge 104$ leave at most 6 rounds remaining. At that point, the hazard of tournament termination renders opponent retaliation bounded or impossible, flipping the expected value of defection from negative to strongly positive.
+### Why T = 104?
+Because the horizon is uniformly distributed between 90 and 110, rounds `n ≥ 104` leave at most 6 rounds remaining. At that point, the hazard of tournament termination renders opponent retaliation bounded or impossible, flipping the expected value of defection from negative to strongly positive.
 
-Comprehensive parameter bracketing across 4,000 Common Random Number (CRN) tournaments confirmed $T=104$ as the unimodal global maximum:
+Comprehensive parameter bracketing across 4,000 Common Random Number (CRN) tournaments confirmed `T = 104` as the unimodal global maximum:
 
-| Ramp Threshold $T$ | 98 | 100 | 102 | **104** | 106 | 108 | Off (No Ramp) |
+| Ramp Threshold T | 98 | 100 | 102 | **104** | 106 | 108 | Off (No Ramp) |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **$P(\text{Rank \#1})$** | 0.063 | 0.093 | 0.114 | **0.119** | 0.110 | 0.099 | 0.085 |
+| **P(rank #1)** | 0.063 | 0.093 | 0.114 | **0.119** | 0.110 | 0.099 | 0.085 |
 | **Mean Score** | 12,894 | 12,906 | 12,912 | **12,914** | 12,913 | 12,910 | 12,906 |
-| **$P(\text{Top 3})$** | 0.213 | 0.284 | 0.315 | **0.317** | 0.308 | 0.276 | 0.252 |
+| **P(top 3)** | 0.213 | 0.284 | 0.315 | **0.317** | 0.308 | 0.276 | 0.252 |
 
-Earlier onsets ($T < 104$) suffer retaliatory lockouts; later onsets ($T > 104$) leave unharvested surplus on the table.
+Earlier onsets (T < 104) suffer retaliatory lockouts; later onsets (T > 104) leave unharvested surplus on the table.
 
 ---
 
@@ -124,16 +124,16 @@ flowchart LR
 
     subgraph Core["Simulation Engine"]
         direction TB
-        Manifest["8 Pool Compositions<br/>(100 Agents each)"]
-        WorkerPool["16-Thread Worker Pool<br/>(Deterministic CRN)"]
-        Fidelity["MSVCRT / SFC64 Engines<br/>(161,700 Triples / run)"]
+        Manifest["8 Pool Compositions (100 Agents each)"]
+        WorkerPool["16-Thread Worker Pool (Deterministic CRN)"]
+        Fidelity["MSVCRT / SFC64 Engines (161,700 Triples/run)"]
     end
 
     subgraph Data["Empirical Scale"]
         direction TB
         Runs["300,000+ Tournaments"]
         Decisions["10.2 Trillion Decisions"]
-        Verdict["T=104 Dominant Onset<br/>P(#1) = 0.119 Maximin Champion"]
+        Verdict["T=104 Dominant Onset: P(rank #1)=0.119 Maximin"]
     end
 
     Zoo --> Manifest
@@ -150,10 +150,10 @@ flowchart LR
 ```
 
 - **Matches Per Tournament**: In a 100-agent tournament, evaluating all triples yields:
-  $$\binom{100}{3} = \frac{100 \times 99 \times 98}{6} = 161,700 \text{ matches}$$
-- **Decisions Per Tournament**: At $\approx 100$ rounds per match with 3 players:
-  $$161,700 \times 100 \times 3 \approx 48.51 \times 10^6 \text{ decisions / tournament}$$
-- **Total Scale**: Over 300,000 tournament executions across screening, parameter sweeps, adversarial self-play, and hold-out validation generated **$\mathbf{>10.2 \times 10^{12}}$ (10.2 trillion) individual agent decisions**.
+  `C(100, 3) = (100 × 99 × 98) / 6 = 161,700 matches`
+- **Decisions Per Tournament**: At ~100 rounds per match with 3 players:
+  `161,700 × 100 × 3 ≈ 48.51 × 10⁶ decisions / tournament`
+- **Total Scale**: Over 300,000 tournament executions across screening, parameter sweeps, adversarial self-play, and hold-out validation generated **> 10.2 × 10¹² (10.2 trillion) individual agent decisions**.
 
 The raw tournament trajectories and pool manifests are structured for benchmark reproduction and downstream multi-agent reinforcement learning analysis.
 
@@ -161,8 +161,8 @@ The raw tournament trajectories and pool manifests are structured for benchmark 
 
 ## 4. Key Empirical Findings
 
-1. **Failure of Active Probing**: Probing strategies that test opponents to detect exploitable naive agents fail decisively (collapsing $\sim 70$ ranks). The retaliatory mass (TFT, Grim Trigger) punishes every leaked war round ($-60/\text{match}$ EV).
-2. **The Zero-Leak Optimum**: The winning foundation is a zero-leak retaliator. `CandF_T104` beats the baseline Generous Tit-for-Tat (`CandA_GTFT`) by $+35\%$ relative $P(\#1)$ ($0.119$ vs $0.088$).
+1. **Failure of Active Probing**: Probing strategies that test opponents to detect exploitable naive agents fail decisively (collapsing ~70 ranks). The retaliatory mass (TFT, Grim Trigger) punishes every leaked war round (−60/match EV).
+2. **The Zero-Leak Optimum**: The winning foundation is a zero-leak retaliator. `CandF_T104` beats the baseline Generous Tit-for-Tat (`CandA_GTFT`) by **+35% relative P(rank #1)** (0.119 vs 0.088).
 3. **Maximin Dominance Across Compositions**: Evaluated across 8 distinct population stress distributions:
    - `prior` (Calibrated 100-agent realistic field)
    - `nice-heavy` (60% cooperative & tolerant mass)
