@@ -10,16 +10,21 @@ Includes the complete simulation harness and **`RampSentinel`**, a deterministic
 
 Three players interact simultaneously over an unknown horizon `N ~ Uniform(90, 110)`. Each round, players choose **Peace (0)** or **War (1)**.
 
-### Payoff Tensor
-A player's payoff depends on their own action and the count of opponent War choices:
+### Payoff Matrix
+A player's stage payoff depends on their own choice and the number of opponent War actions:
 
 | Action | 0 Opponent Wars | 1 Opponent War | 2 Opponent Wars |
 |---|:---:|:---:|:---:|
-| **Peace** | **4** | **1** | **−1** |
-| **War** | **6** | **3** | **0** |
+| **Peace (0)** | **4** | **1** | **−1** |
+| **War (1)** | **6** | **3** | **0** |
+
+Indexed in the tournament harness as `payoff[myAction][opp1Action][opp2Action]`:
 
 ```cpp
-payoff[A][B][C] = {{{4, 1}, {1, -1}}, {{6, 3}, {3, 0}}};
+const int payoff[2][2][2] = {
+    {{4, 1}, {1, -1}},  // Peace (0): 4 (mutual peace), 1 (single defection), -1 (sucker)
+    {{6, 3}, {3, 0}}   // War (1):   6 (free rider),    3 (mutual retaliation), 0 (all-war lock)
+};
 ```
 
 ### Strategic Dynamics & Conflict States
