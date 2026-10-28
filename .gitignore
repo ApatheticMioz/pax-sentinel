@@ -5,3 +5,6 @@ results/
 .scratch/
 sim/build/
 .claude/
+__pycache__/
+*.pyc
+sim/arena/logs/
