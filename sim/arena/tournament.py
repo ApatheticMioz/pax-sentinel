@@ -66,15 +66,34 @@ def run_tournament_series(config_id, num_matches=5, base_seed=1000, rounds_per_m
         random.seed(match_seed)
         horizon = rounds_per_match if rounds_per_match is not None else random.randint(90, 110)
 
-        p0, p1, p2 = build_roster(config_id, m)
-        if player_names is None:
-            player_names = [p0.name, p1.name, p2.name]
-
         match_label = f"cfg{config_id}_m{m+1:02d}"
-        res = run_arena_match(match_label, p0, p1, p2, horizon, log_dir=log_dir)
+        match_file = os.path.join(log_dir, f"match_{match_label}.json")
+
+        res = None
+        if os.path.exists(match_file):
+            try:
+                with open(match_file, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+                if (cached.get("match_id") == match_label and
+                    "final_scores" in cached and
+                    len(cached.get("rounds", [])) == cached.get("horizon", -1)):
+                    print(f"\n[CHECKPOINT] Found completed match #{match_label} ({cached['horizon']} rounds, scores: {cached['final_scores']}). Loaded from disk.")
+                    res = cached
+            except Exception as e:
+                print(f"[CHECKPOINT] Warning loading {match_file}: {e}. Will re-run match.")
+                res = None
+
+        if res is None:
+            p0, p1, p2 = build_roster(config_id, m)
+            if player_names is None:
+                player_names = [p0.name, p1.name, p2.name]
+            res = run_arena_match(match_label, p0, p1, p2, horizon, log_dir=log_dir)
+
+        if player_names is None:
+            player_names = res.get("players", ["Player 0", "Player 1", "Player 2"])
 
         series_results.append(res)
-        total_rounds += horizon
+        total_rounds += res["horizon"]
         for i in range(3):
             total_scores[i] += res["final_scores"][i]
 

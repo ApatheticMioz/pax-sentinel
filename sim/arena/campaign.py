@@ -34,8 +34,17 @@ def run_grand_championship(matches_per_tournament=20, base_seed=42000, log_dir="
             base_seed=cfg_seed,
             rounds_per_match=None,
             log_dir=log_dir
-        )
         grand_results[f"tournament_{cfg_id}"] = series_res
+
+        # Save intermediate grand championship summary after each completed tournament
+        grand_file = os.path.join(log_dir, "grand_championship_summary.json")
+        with open(grand_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "matches_per_tournament": matches_per_tournament,
+                "current_progress": f"{cfg_id}/4 tournaments completed",
+                "total_elapsed_sec": time.time() - t_grand_start,
+                "tournaments": grand_results
+            }, f, indent=2)
 
     total_grand_time = time.time() - t_grand_start
 
