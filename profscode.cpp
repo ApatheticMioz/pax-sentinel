@@ -96,43 +96,6 @@ class ThreeWayPeaceWar {
         }
     };
 
-    // =====================================================================
-    // Submission — AI4012 Assignment 3 (Three-Way Repeated Peace-War)
-    // Name:        RampSentinel
-    // Roll No:     
-    // Section:     
-    //     // Class name:  RampSentinelAgent
-    //              (valid-identifier form of the "<student-id>-<Name>Agent"
-    //              convention: '-' cannot appear inside a C++ identifier,
-    //              so the hyphen is elided; file name keeps the exact
-    //              hyphen form per instructions.txt)
-    //
-    // Strategy — deterministic endgame-ramp retaliator ("RampSentinel"):
-    // no RNG, no per-match state, O(1) per round, histories read
-    // strictly read-only. Rules evaluated top-down; first match wins:
-    //   R0  round 0 -> Peace (nice opening; Axelrod 1980).
-    //   R2  BOTH opponents warred last round -> War (never Peace into a
-    //       two-war round: payoff 0 > -1).
-    //   R3  Endgame ramp: round >= 104 -> committed War. The horizon is
-    //       uniform on [90, 110] and hidden; from round 104 the expected
-    //       remaining horizon is too short for retaliation to be repaid,
-    //       so harvesting the +2 temptation dominates (endgame
-    //       unraveling; Ichinose & Masuda 2018). Onset 104 frozen by a
-    //       28,000-tournament common-random-number bracket.
-    //   R1  Contrite-TFT backbone (Wu & Axelrod 1995):
-    //         my last action War while BOTH opponents played Peace
-    //         -> Peace (contrition: repair my own unprovoked war);
-    //         otherwise War iff EITHER opponent warred last round,
-    //         else Peace.
-    //
-    // Validation: ~300,000 common-random-number tournaments against a
-    // 54-archetype opponent zoo on a bit-faithful harness replica;
-    // freeze-validated out-of-sample on fresh seeds, 8 pool
-    // compositions, and both triple-enumeration modes. P(rank #1) =
-    // 0.117 [95% CI 0.108, 0.128] on the calibrated ~100-agent pool vs
-    // 0.001 for the plain-GTFT control; worst-case bounded across all
-    // families (full ledger: REPORT.md, research/GAME-ANALYSIS.md).
-    // =====================================================================
     class RampSentinelAgent : public Agent {
         static constexpr int kRampWindowStart = 90;  // ramp window opens at the minimum possible horizon
         static constexpr int kRampThreshold   = 104; // frozen onset: committed war from round 104

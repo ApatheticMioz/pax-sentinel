@@ -113,8 +113,7 @@ per the official instructions ("submit only your code fragment, which must be a 
 class file"; the tournament code must not be modified/submitted). Format mirrors the
 professor's snippet: class `RampSentinelAgent : public Agent` with the
 v2 const-ref signature and `override`. The hyphen form of the class name
-(`RampSentinelAgent`) cannot be a C++ identifier, so the *file* carries
-the exact hyphen convention and the class elides the hyphen. Fragment compliance
+Fragment compliance
 verified: zero `#include` directives (no new dependencies), zero `rand()` usage
 (deterministic), zero references to harness internals (payoff/runner untouched).
 

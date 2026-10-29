@@ -1,11 +1,7 @@
 // =====================================================================
-// AI4012 Assignment 3 — Three-Way Repeated Peace-War Tournament
-// Name:        RampSentinel
-// Roll No:     
-// Section:     
-// // Class:       RampSentinelAgent
-//              (valid-identifier form of "RampSentinelAgent":
-//              '-' cannot appear inside a C++ identifier)
+// Three-Way Repeated Peace-War Tournament
+// Strategy:    RampSentinel (deterministic endgame-ramp retaliator)
+// Class:       RampSentinelAgent
 //
 // Strategy — deterministic endgame-ramp retaliator:
 // no RNG, no per-match state, O(1) per round, histories read strictly
