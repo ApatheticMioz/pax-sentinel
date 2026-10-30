@@ -45,14 +45,50 @@ CONFIG_NAMES = {
     4: "The Saint Hunter Arena (RampSentinel vs SaintHunter vs LLM-Epsilon)"
 }
 
-def run_tournament_series(config_id, num_matches=5, base_seed=1000, rounds_per_match=None, log_dir="sim/arena/logs"):
+def compute_standings_context(total_scores, win_counts, m, num_matches):
+    """
+    Constructs strictly objective, non-biased tournament leaderboard state for each player.
+    Format:
+    Tournament Series Standings (Entering Match {m+1}/{num_matches}):
+    - 1st Place: {rank1_score:.0f} pts ({rank1_wins} wins)
+    - 2nd Place: {rank2_score:.0f} pts ({rank2_wins} wins)
+    - 3rd Place: {rank3_score:.0f} pts ({rank3_wins} wins)
+    Your Position: Rank {my_rank} ({my_score:.0f} pts, {my_wins} wins)
+    """
+    if m == 0:
+        generic = (
+            f"Tournament Series Standings (Entering Match 1/{num_matches}):\n"
+            f"- Match 1 of {num_matches}. All players currently tied at Rank 1 (0 pts, 0 wins).\n"
+            f"Your Position: Rank 1 (0 pts, 0 wins)"
+        )
+        return {1: generic, 2: generic}
+
+    ranked = sorted(range(3), key=lambda i: (win_counts[i], total_scores[i]), reverse=True)
+    ranks = {}
+    for pos, idx in enumerate(ranked, start=1):
+        ranks[idx] = pos
+
+    ordinal = {1: "1st Place", 2: "2nd Place", 3: "3rd Place"}
+    lines = [f"- {ordinal[pos]}: {total_scores[idx]:.0f} pts ({win_counts[idx]} wins)" for pos, idx in enumerate(ranked, start=1)]
+    table = "\n".join(lines)
+
+    standings = {}
+    for i in [1, 2]:
+        standings[i] = (
+            f"Tournament Series Standings (Entering Match {m+1}/{num_matches}):\n"
+            f"{table}\n"
+            f"Your Position: Rank {ranks[i]} ({total_scores[i]:.0f} pts, {win_counts[i]} wins)"
+        )
+    return standings
+
+def run_tournament_series(config_id, num_matches=5, base_seed=1000, rounds_per_match=None, log_dir="sim/arena/logs", inject_standings=False):
     os.makedirs(log_dir, exist_ok=True)
     cname = CONFIG_NAMES.get(config_id, f"Config {config_id}")
 
     print("=" * 90)
     print(f"TOURNAMENT SERIES: {cname}")
     print(f"Series Length: {num_matches} matches | Per-Match Horizon: {'Uniform[90, 110]' if rounds_per_match is None else f'{rounds_per_match} rounds'}")
-    print(f"Base Seed: {base_seed} | Max Concurrent vLLM Calls: 2")
+    print(f"Base Seed: {base_seed} | Max Concurrent vLLM Calls: 2 | Meta-Standings: {'Active' if inject_standings else 'Off'}")
     print("=" * 90)
 
     series_results = []
@@ -87,7 +123,8 @@ def run_tournament_series(config_id, num_matches=5, base_seed=1000, rounds_per_m
             p0, p1, p2 = build_roster(config_id, m)
             if player_names is None:
                 player_names = [p0.name, p1.name, p2.name]
-            res = run_arena_match(match_label, p0, p1, p2, horizon, log_dir=log_dir)
+            standings_ctx = compute_standings_context(total_scores, win_counts, m, num_matches) if inject_standings else None
+            res = run_arena_match(match_label, p0, p1, p2, horizon, log_dir=log_dir, standings_context=standings_ctx)
 
         if player_names is None:
             player_names = res.get("players", ["Player 0", "Player 1", "Player 2"])

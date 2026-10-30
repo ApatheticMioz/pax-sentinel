@@ -8,7 +8,7 @@ import os
 import time
 from .tournament import run_tournament_series, CONFIG_NAMES
 
-def run_grand_championship(matches_per_tournament=20, base_seed=42000, log_dir="sim/arena/logs"):
+def run_grand_championship(matches_per_tournament=20, base_seed=42000, log_dir="sim/arena/logs", inject_standings=False):
     os.makedirs(log_dir, exist_ok=True)
     t_grand_start = time.time()
 
@@ -17,6 +17,8 @@ def run_grand_championship(matches_per_tournament=20, base_seed=42000, log_dir="
     print(f"Total Tournaments: 4 | Matches Per Tournament: {matches_per_tournament} | Total Matches: {4 * matches_per_tournament}")
     print(f"Horizon per Match: Uniform[90, 110] rounds | Cross-Match Memory: None (Strict Fresh Agent Construction)")
     print(f"Concurrency: Max 2 Concurrent vLLM Calls (Enforced by Global Semaphore)")
+    print(f"Tournament Meta-State: {'ACTIVE (Condition B - Leaderboard Injected)' if inject_standings else 'OFF (Condition A - Amnesiac Baseline)'}")
+    print(f"Output Directory: {log_dir}")
     print("=" * 95)
 
     grand_results = {}
@@ -33,7 +35,8 @@ def run_grand_championship(matches_per_tournament=20, base_seed=42000, log_dir="
             num_matches=matches_per_tournament,
             base_seed=cfg_seed,
             rounds_per_match=None,
-            log_dir=log_dir
+            log_dir=log_dir,
+            inject_standings=inject_standings
         )
         grand_results[f"tournament_{cfg_id}"] = series_res
 
@@ -43,6 +46,7 @@ def run_grand_championship(matches_per_tournament=20, base_seed=42000, log_dir="
             json.dump({
                 "matches_per_tournament": matches_per_tournament,
                 "current_progress": f"{cfg_id}/4 tournaments completed",
+                "meta_state_active": inject_standings,
                 "total_elapsed_sec": time.time() - t_grand_start,
                 "tournaments": grand_results
             }, f, indent=2)
@@ -67,6 +71,7 @@ def run_grand_championship(matches_per_tournament=20, base_seed=42000, log_dir="
     with open(grand_file, "w", encoding="utf-8") as f:
         json.dump({
             "matches_per_tournament": matches_per_tournament,
+            "meta_state_active": inject_standings,
             "total_runtime_sec": total_grand_time,
             "tournaments": grand_results
         }, f, indent=2)
@@ -80,9 +85,20 @@ def main():
                         help="Base seed for reproducibility")
     parser.add_argument("--log-dir", type=str, default="sim/arena/logs",
                         help="Output directory for match and series JSON logs")
+    parser.add_argument("--meta-state", action="store_true",
+                        help="Inject objective tournament standings before each match (Condition B)")
     args = parser.parse_args()
 
-    run_grand_championship(matches_per_tournament=args.matches, base_seed=args.seed, log_dir=args.log_dir)
+    out_dir = args.log_dir
+    if args.meta_state and args.log_dir == "sim/arena/logs":
+        out_dir = "sim/arena/logs_meta"
+
+    run_grand_championship(
+        matches_per_tournament=args.matches,
+        base_seed=args.seed,
+        log_dir=out_dir,
+        inject_standings=args.meta_state
+    )
 
 if __name__ == "__main__":
     main()

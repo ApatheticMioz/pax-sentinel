@@ -186,9 +186,10 @@ class ArenaLLMAgent:
         )
         self.messages.append({"role": "system", "content": sys_msg})
 
-    def select_action(self, n, last_outcome=None, incoming_broadcasts=None):
+    def select_action(self, n, last_outcome=None, incoming_broadcasts=None, standings_context=None):
         if n == 0:
-            user_msg = "Match starts: Round 0 of [90, 110] rounds. Output your opening BROADCAST and ACTION."
+            meta_str = f"\n\n{standings_context}\n\n" if standings_context else "\n"
+            user_msg = f"Match starts: Round 0 of [90, 110] rounds.{meta_str}Output your opening BROADCAST and ACTION."
         else:
             b1 = (incoming_broadcasts.get("opp1", "") or "[Silence]").strip() if incoming_broadcasts else "[Silence]"
             b2 = (incoming_broadcasts.get("opp2", "") or "[Silence]").strip() if incoming_broadcasts else "[Silence]"

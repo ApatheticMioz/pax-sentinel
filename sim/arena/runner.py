@@ -13,13 +13,15 @@ from .agents import PAYOFF, ArenaLLMAgent
 # Strictly enforce at most 2 concurrent vLLM requests across the runner
 VLLM_SEMAPHORE = threading.Semaphore(2)
 
-def run_arena_match(match_id, p0, p1, p2, horizon, log_dir="sim/arena/logs"):
+def run_arena_match(match_id, p0, p1, p2, horizon, log_dir="sim/arena/logs", standings_context=None):
     os.makedirs(log_dir, exist_ok=True)
 
     print("=" * 85)
     print(f"ARENA MATCH #{match_id}: {p0.name} vs {p1.name} vs {p2.name}")
     print(f"Horizon: {horizon} rounds (hidden, N ~ Uniform[90, 110])")
     print(f"Max Concurrent LLM Calls: 2 | Broadcast Channel: Active")
+    if standings_context:
+        print(f"Tournament Standings Meta-State: Injected for Round 0")
     print("=" * 85)
 
     hist0, hist1, hist2 = [], [], []
@@ -44,17 +46,18 @@ def run_arena_match(match_id, p0, p1, p2, horizon, log_dir="sim/arena/logs"):
         act0 = p0.select_action(r, hist0, hist1, hist2)
 
         # Helper to query with global semaphore
-        def query_agent(agent, last_outcome, incoming_bc):
+        def query_agent(agent, last_outcome, incoming_bc, p_idx):
             if isinstance(agent, ArenaLLMAgent):
                 with VLLM_SEMAPHORE:
-                    return agent.select_action(r, last_outcome, incoming_bc)
+                    ctx = standings_context.get(p_idx) if (standings_context and r == 0) else None
+                    return agent.select_action(r, last_outcome, incoming_bc, standings_context=ctx)
             else:
                 return agent.select_action(r, hist1 if agent is p1 else hist2, hist0, hist2 if agent is p1 else hist1)
 
         # Query p1 and p2 (concurrent up to semaphore limit of 2)
         with ThreadPoolExecutor(max_workers=2) as executor:
-            fut1 = executor.submit(query_agent, p1, last_outcome_p1, incoming_p1)
-            fut2 = executor.submit(query_agent, p2, last_outcome_p2, incoming_p2)
+            fut1 = executor.submit(query_agent, p1, last_outcome_p1, incoming_p1, 1)
+            fut2 = executor.submit(query_agent, p2, last_outcome_p2, incoming_p2, 2)
             act1 = fut1.result()
             act2 = fut2.result()
 
