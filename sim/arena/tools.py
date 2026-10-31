@@ -200,11 +200,11 @@ class AgentToolbox:
             expr = kwargs.get("expression") or raw_args.strip("'\"")
             return self.calculator.execute(expression=str(expr))
         elif tool_name == "tournament_scratchpad":
-            action = kwargs.get("action", "read")
-            content = kwargs.get("content", "")
+            action = kwargs.pop("action", "read")
+            content = kwargs.pop("content", "")
             return self.scratchpad.execute(action=str(action), content=str(content))
         elif tool_name == "history_inspector":
-            action = kwargs.get("action", "recent")
+            action = kwargs.pop("action", "recent")
             return self.history_inspector.execute(action=str(action), **kwargs)
         else:
             return f"Error: Unknown tool '{tool_name}'."
