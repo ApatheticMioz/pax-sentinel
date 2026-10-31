@@ -8,3 +8,4 @@ sim/build/
 __pycache__/
 *.pyc
 sim/arena/logs/
+sim/arena/logs_meta/
