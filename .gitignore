@@ -9,3 +9,7 @@ __pycache__/
 *.pyc
 sim/arena/logs/
 sim/arena/logs_meta/
+sim/arena/logs_induction*/
+sim/arena/logs_xhigh_branch/
+sim/arena/logs_ablation/
+sim/arena/logs_tool_tournament/
